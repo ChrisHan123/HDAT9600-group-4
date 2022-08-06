@@ -1,0 +1,26 @@
+---
+title: "Nick's group project work"
+author: "Nick Duce"
+date: "06/08/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+
+```{r cars}
+summary(icu_patients_df1$Age)
+summary(icu_patients_df1$Gender)
+summary(icu_patients_df1$Lactate_max)
+summary(icu_patients_df1$Albumin_diff)
+summary(icu_patients_df1$FiO2_diff)
+summary(icu_patients_df1$GCS_min)
+summary(icu_patients_df1$HR_max)
+icu_patients_df1$BMI<-icu_patients_df1$Weight_max/((icu_patients_df1$Height/100)^2)
+summary(icu_patients_df1$BMI)
+summary(icu_patients_df1$Creatinine_diff)
+```
+
