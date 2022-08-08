@@ -8,19 +8,135 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
+library(readr)
+library(pROC)
+icu_patients_df1 <- read_rds("icu_patients_df1.rds")
+```
+
+_I will go through each variabkle in turn and do some exploratory data analysis_
+
+```{r}
+##Age
+##Plot graph for age
+ggplot(data = icu_patients_df1) +
+  geom_bar(mapping = aes(x = Age))
+##There appear to be more than expected patients with age 90 - perhaps this is coded for missing ages or all above 90?
+
+
+##Recode age 90 as missing in new cariable age_miss
+icu_patients_df1$Age_miss<-icu_patients_df1$Age
+icu_patients_df1["Age_miss"][icu_patients_df1["Age_miss"] == 90] <- NA
+ggplot(data = icu_patients_df1) +
+  geom_bar(mapping = aes(x = Age_miss))+
+  labs(x="Age", y="frequency", title="Age in the ICU dataset")
+
+###Gender
+ggplot(data = icu_patients_df1) +
+  geom_bar(mapping = aes(x = Gender)) +
+  labs(x="Gender", y="Frequency", title="Gender in the ICU dataset")
 ```
 
 
-```{r cars}
-summary(icu_patients_df1$Age)
-summary(icu_patients_df1$Gender)
-summary(icu_patients_df1$Lactate_max)
-summary(icu_patients_df1$Albumin_diff)
-summary(icu_patients_df1$FiO2_diff)
-summary(icu_patients_df1$GCS_min)
-summary(icu_patients_df1$HR_max)
+```{r}
+###Lactate
+ggplot(data = icu_patients_df1, mapping = aes(x = Lactate_max)) +
+  geom_histogram(binwidth = 0.1) +
+  labs(x="Maximum lactate in first 24h", y="Frequency", title="Maximum lactate histogram")
+```
+
+
+```{r}
+###Albumin
+
+## I initially interpreted albumin_diff as being the difference between minimum and maximum values showing change - however it is the maximal difference from the mean value of the set, this doesn't have direction so I think will be a less useful predictor, I will use minimum albumin instead as this reflects a negative acute phase reactant
+ggplot(data = icu_patients_df1, mapping = aes(x = Albumin_min)) +
+  geom_histogram(binwidth = 0.1) +
+  labs(x="Minimum albumin in the first 24h", y="Frequency", title="Minimum albumin histogram")
+```
+```{r}
+###Oxygen
+
+ggplot(data = icu_patients_df1, mapping = aes(x = FiO2_max)) +
+  geom_histogram(binwidth = 0.1) +
+  labs(x="Maximal fraction of inspired oxygen in the first 24h", y="Frequency", title="Maximal fraction of inspired oxygen histogram")
+
+##This graph reflects that many patients will be admitted to ICU on 100% oxygen, even if they don't require that number, maybe lets look at minimal saturations and partial pressures of oxygen as well
+
+ggplot(data = icu_patients_df1, mapping = aes(x = PaO2_min)) +
+  geom_histogram(binwidth = 10) +
+  labs(x="Minimal partial pressure of oxygen in the first 24h", y="Frequency", title="Minimal partial pressure of oxygen histogram")
+
+ggplot(data = icu_patients_df1, mapping = aes(x = SaO2_min)) +
+  geom_histogram(binwidth = 1) +
+  labs(x="Minimal saturations of oxygen in the first 24h", y="Frequency", title="Minimal satuiration of oxygen histogram")
+
+##It may be useful to see which is the best predictor in our model so I will keep all three and experiment in the model creation
+```
+```{r}
+###Glascow coma scale
+
+ggplot(data = icu_patients_df1, mapping = aes(x = GCS_min)) +
+  geom_histogram(binwidth = 1) +
+  labs(x="Minimum GCS in the first 24h", y="Frequency", title="Minimum GCS histogram")
+
+##As expected there is a large proportion of patients who have a minimum GCS of 3, however I think this will be a useful predictor of ICU mortality, we'll see!
+```
+```{r}
+###BMI
 icu_patients_df1$BMI<-icu_patients_df1$Weight_max/((icu_patients_df1$Height/100)^2)
-summary(icu_patients_df1$BMI)
-summary(icu_patients_df1$Creatinine_diff)
+
+ggplot(data = icu_patients_df1, mapping = aes(x = BMI)) +
+  geom_histogram(binwidth = 1) +
+  labs(x="BMI", y="Frequency", title="BMI histogram")
+
+##OK there are some very big BMI values here, I will treat all BMIs greater than 60 or less than 10 as missing
+icu_patients_df1$BMI_miss<-icu_patients_df1$BMI
+is.na(icu_patients_df1$BMI_miss) <- icu_patients_df1$BMI_miss > 60 |icu_patients_df1$BMI_miss <10
+
+##Re-try the histogram
+ggplot(data = icu_patients_df1, mapping = aes(x = BMI_miss)) +
+  geom_histogram(binwidth = 1) +
+  labs(x="BMI", y="Frequency", title="BMI histogram")
+```
+```{r}
+###Creatinine
+
+ggplot(data = icu_patients_df1, mapping = aes(x = Creatinine_max)) +
+  geom_histogram(binwidth = 0.1) +
+  labs(x="Maximum creatinine in the first 24h", y="Frequency", title="Maximum creatinine histogram")
+```
+```{r}
+###Create a multivariate GLM using all predictors
+
+icu_mod <- glm(in_hospital_death ~ Age + Gender + Lactate_max + Albumin_min + + FiO2_max + SaO2_min + PaO2_min + GCS_min + Creatinine_max , family = binomial, data=icu_patients_df1)
+summary(icu_mod)
+print(drop1(icu_mod, test="Chi"))
+```
+```{r}
+#Create predicted values
+icu_patients_df1 %>% mutate(predprob=predict(icu_mod, type="response")) -> icu_pred_initial
+
+#ROC curve and AUC of precicted values for full model
+test_roc_initial = roc(icu_pred_initial$in_hospital_death ~ icu_pred_initial$predprob, plot = TRUE, print.auc = TRUE)
+```
+
+_There are some string predictors in this model and it fits fairly well with AUC 0.701 - age, lactate_max, albumin_min and creatinine_max. However it would be nice to have a predictor that describes the respiratory state of the patient, how about we use maximal respiratory rate_
+
+```{r}
+icu_mod2<-glm(in_hospital_death ~ Age + Gender + Lactate_max + Albumin_min + RespRate_max + GCS_min + Creatinine_max , family = binomial, data=icu_patients_df1)
+summary(icu_mod2)
+print(drop1(icu_mod2, test="Chi"))
+```
+_Excellent, this model has some strong precictors, let's test the goodness of fit_
+```{r}
+#Create predicted values
+icu_patients_df1 %>% mutate(predprob_2=predict(icu_mod2, type="response")) -> icu_pred
+
+#ROC curve and AUC of precicted values for full model
+test_roc_2 = roc(icu_pred$in_hospital_death ~ icu_pred$predprob_2, plot = TRUE, print.auc = TRUE)
+```
+_This model has a better goodness of fit and uses less predictors, lastly I'll compare the two models I've made_
+```{r}
+anova(icu_mod2, icu_mod, test ="Chisq")
 ```
 
