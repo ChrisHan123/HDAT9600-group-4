@@ -10,6 +10,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(readr)
 library(pROC)
+library(arm)
+library(faraway)
 icu_patients_df1 <- read_rds("icu_patients_df1.rds")
 ```
 
@@ -138,5 +140,13 @@ test_roc_2 = roc(icu_pred$in_hospital_death ~ icu_pred$predprob_2, plot = TRUE, 
 _This model has a better goodness of fit and uses less predictors, lastly I'll compare the two models I've made_
 ```{r}
 anova(icu_mod2, icu_mod, test ="Chisq")
+```
+
+```{r}
+plot(residuals(icu_mod2) ~ predict(icu_mod2,type="link"),xlab=expression(hat(eta)),ylab="Deviance residuals",pch=20,col="blue")
+```
+```{r}
+binnedplot(predict(icu_mod2), residuals(icu_mod2))
+halfnorm(hatvalues(icu_mod2))
 ```
 
