@@ -10,6 +10,8 @@ output: html_document
 # leave this code here, but feel free to adjust the options or add some more
 # see the knitr documentation for details
 knitr::opts_chunk$set(echo = TRUE, fig.width=12, fig.height=12)
+library(gtsummary)
+library(dplyr)
 ```
 
 ## Instructions
@@ -138,15 +140,67 @@ The following 36 clinical measures were assessed at multiple timepoints during e
 * Weight (kg)
 
 
-## Accessing the Data
-The data frame can be loaded with the following code:
+## EDA
+```{r}
+icu_patients_df1 <- readRDS("icu_patients_df1.rds")
+icu_patients_df1
+
+#check how many rows in total, #2061
+nrow(icu_patients_df1)
+
+#check how many variables in the data set #120
+ls(icu_patients_df1) 
+
+#check how many missing valus which is #11193
+sum(is.na(icu_patients_df1))
+```
 
 ```{r}
-icu_patients_df0 <- readRDS("icu_patients_df0.rds")
-icu_patients_df1 <- readRDS("icu_patients_df1.rds")
+#remove all variables that have more than 20% missing value
+icu_removed_na <- icu_patients_df1[colSums(is.na(icu_patients_df1))/nrow(icu_patients_df1) < .2]
+icu_removed_na <- na.omit(icu_removed_na)
 
-head(icu_patients_df1)
+#check how many rows, 1855
+nrow(icu_removed_na)
+
+#check how many variables, 103
+ls(icu_removed_na) 
 ```
+
+
+
+```{r}
+summary(icu_removed_na)
+```
+
+
+```{r}
+#SOFA score should be (0-24)
+icu_removed_na$SOFA[icu_removed_na$SOFA == -1] <- NA 
+
+#lengeth of stay can't be negative
+icu_removed_na$Length_of_stay[icu_removed_na$Length_of_stay == -1] <- NA 
+
+icu_removed_na <- na.omit(icu_removed_na)
+
+
+
+
+#1819 rows
+nrow(icu_removed_na)
+
+#103 variables
+ncol(icu_removed_na) 
+
+sum(is.na(icu_removed_na))
+```
+
+After data clean, there are 1819 rows, 103 variables and 0 missing values
+
+
+
+
+
 **Note:** icu_patients_df1 is an imputed (i.e. missing values are 'derived') version of icu_patients_df0.  This assessment does not concern the methods used for imputation.
 
 
@@ -176,48 +230,58 @@ In this task, you are required to develop a logistic regression model using the 
 **Create your response to this task here, as a mixture of embedded (`knitr`) R code and any resulting outputs, and explanatory or commentary text.** 
 
 
-```{r}
-#remove all variables that have more than 20% missing value(or maybe don't need to)
-icu_remove_na <- icu_patients_df1[colSums(is.na(icu_patients_df1))/nrow(icu_patients_df1) < .2]
-icu_remove_na <- na.omit(icu_remove_na)
 
-icu_remove_na
 
-```
 
 ```{r}
+# Calculate P value between each selected variables and in_hospital_hospital_death
+icu_removed_na$hospital_death <- factor(icu_removed_na$in_hospital_death, labels=c("Survivor","in_hospital_death"))
 
-summary(icu_remove_na)
+# Remove some descriptor and outcome variables
+data_frame <- icu_removed_na %>%
+       dplyr::select(-RecordID, -Length_of_stay, -Status, -Days, -in_hospital_death)
+
+Pvalue_each <- tbl_summary(data_frame, by=hospital_death) %>%
+          add_p() %>%  
+          modify_header(label = "**Variable**") %>%
+          bold_labels() 
+Pvalue_each
+
+#remove the hospital_death
+icu_removed_na <- icu_removed_na %>%
+                 dplyr::select(-hospital_death)
 ```
 
 ```{r}
 #general look
-mod1 <- glm(in_hospital_death ~ SAPS1 + SOFA + Albumin_max + Albumin_min + ALP_max + ALP_min + ALT_max + ALT_min + AST_max + AST_min + Bilirubin_max + Bilirubin_min + BUN_diff + BUN_max + BUN_min + Cholesterol_diff + Creatinine_diff + Creatinine_max + Creatinine_min + FiO2_min + GCS_max + GCS_min + Glucose_diff + Glucose_max + HCO3_diff + HCO3_max + HCO3_min + HCT_max + HR_diff + HR_max + HR_min + ICUType + K_diff + K_min + Lactate_diff + Lactate_max + Lactate_min + Na_diff + PaCO2_diff + PaCO2_max + PaCO2_min + PaO2_diff + PaO2_max + PaO2_min + Platelets_diff + Platelets_max + RespRate_max + RespRate_min + SaO2_diff + Temp_diff + Temp_min + TroponinI_min + Urine_diff + Urine_max + Urine_min + WBC_diff + WBC_min + Weight_max + Weight_min, family = binomial(link = 'logit'), data=icu_remove_na)
+mod1 <- glm(in_hospital_death ~ SAPS1 + SOFA + Age + Albumin_max + Albumin_min + ALP_max + ALP_min + ALT_diff + AST_max + AST_min + Bilirubin_diff + Bilirubin_max + Bilirubin_min + BUN_diff + BUN_max + BUN_min + Cholesterol_diff + Cholesterol_max + Cholesterol_min + Creatinine_diff + Creatinine_max + Creatinine_min + FiO2_min + GCS_max + GCS_min + Glucose_diff + Glucose_max + HCO3_diff + HCO3_max + HCO3_min + HCT_max + HCT_min + HR_diff + HR_max + ICUType + K_diff + Lactate_diff + Lactate_max + Lactate_min + Na_diff + PaCO2_diff + PaCO2_max + PaCO2_min + PaO2_diff + PaO2_max + PaO2_min + pH_diff + Platelets_diff + Platelets_max + Platelets_min + RespRate_diff + RespRate_max + RespRate_min + Temp_diff + Temp_min + TroponinT_max + Urine_diff + Urine_max + Urine_min + WBC_diff + Weight_max + Weight_min, family = binomial(link = 'logit'), data=icu_remove_na)
 
 summary(mod1)
 ```
 
 ```{r}
 #sig in Mod1 goes to mod2
-mod2 <- glm(in_hospital_death ~ SOFA + BUN_min + GCS_max + HR_min + ICUType + Platelets_max, family = binomial(link = 'logit'), data=icu_remove_na)
+mod2 <- glm(in_hospital_death ~ SAPS1 + Age + AST_max + Bilirubin_min + BUN_min + Cholesterol_max + Cholesterol_min + GCS_max + ICUType + pH_diff + Platelets_diff + Platelets_diff, family = binomial(link = 'logit'), data=icu_remove_na)
 summary(mod2)
 ```
 
 ```{r}
-#sig in Mod2 goes to mod3
-mod3 <- glm(in_hospital_death ~ SOFA + BUN_min + GCS_max + Platelets_max, family = binomial(link = 'logit'), data=icu_remove_na)
+#sig in Mod2 goes to mod3, ICU removed
+mod3 <- glm(in_hospital_death ~ SAPS1 + Age + AST_max + Bilirubin_min + BUN_min + Cholesterol_max + Cholesterol_min + GCS_max, family = binomial(link = 'logit'), data=icu_remove_na)
 summary(mod3)
 ```
 
 ```{r}
 #Anova test to test which model is better
-compared <- anova(mod2, mod3)
-compared
+anova(mod2, mod3,test='Chisq')
 ```
+
+P value is significant so the model with more variables is better, mod2 has lowest AIC(1235.6)
+
 
 
 ```{r}
-#Checking AIC value,mod2(1335.4) < mod3(1359.8), looks like mod2 is better
+
 plot(mod2)
 ```
 
@@ -233,6 +297,8 @@ icu_remove_na %>%mutate(predprob=predict(mod2, type="response")) -> icu_remove_n
 
 
 roc(icu_remove_na$in_hospital_death, icu_remove_na$predprob, plot = TRUE, percent=TRUE)
+
+
 ```
 
 
