@@ -145,9 +145,11 @@ The following 36 clinical measures were assessed at multiple timepoints during e
 
 
 ## EDA
+
+1.Getting an overview of dataset
 ```{r}
 icu_patients_df1 <- readRDS("icu_patients_df1.rds")
-icu_patients_df1
+
 
 #check how many rows in total, #2061
 nrow(icu_patients_df1)
@@ -159,8 +161,12 @@ ls(icu_patients_df1)
 sum(is.na(icu_patients_df1))
 ```
 
+Getting an overview of dataset, and there are 2061 rows, 120 variables and 11193 missing values at the very beginning
+
+
+
+2.Remove all variables that have more than 20% missing value and check the dataset again
 ```{r}
-#remove all variables that have more than 20% missing value
 icu_removed_na <- icu_patients_df1[colSums(is.na(icu_patients_df1))/nrow(icu_patients_df1) < .2]
 icu_removed_na <- na.omit(icu_removed_na)
 
@@ -170,20 +176,20 @@ nrow(icu_removed_na)
 #check how many variables, 103
 ls(icu_removed_na) 
 ```
+There are 1855 rows and 103 variables left
 
-
-
+3. Check the summary of all variables
 ```{r}
 summary(icu_removed_na)
 ```
 
-
+4. the SOFA score should be in the range between 0-24, and length of stay shouldn't be negative so delete 
 ```{r}
-#SOFA score should be (0-24)
+
 icu_removed_na$SOFA[icu_removed_na$SOFA == -1] <- NA 
 
-#lengeth of stay can't be negative
 icu_removed_na$Length_of_stay[icu_removed_na$Length_of_stay == -1] <- NA 
+
 
 icu_removed_na <- na.omit(icu_removed_na)
 
@@ -199,7 +205,7 @@ ncol(icu_removed_na)
 sum(is.na(icu_removed_na))
 ```
 
-After data clean, there are 1819 rows, 103 variables and 0 missing values
+After data clean, there are 1819 rows, 103 variables and 0 missing values finally
 
 
 
@@ -236,7 +242,7 @@ In this task, you are required to develop a logistic regression model using the 
 
 
 
-
+**P value between all predictor and in_hospital_death**
 ```{r}
 # Calculate P value between each selected variables and in_hospital_hospital_death
 icu_removed_na$hospital_death <- factor(icu_removed_na$in_hospital_death, labels=c("Survivor","in_hospital_death"))
@@ -256,6 +262,10 @@ icu_removed_na <- icu_removed_na %>%
                  dplyr::select(-hospital_death)
 ```
 
+
+### Model fitting 
+
+We will try fit every significant predictor at the beginning 
 ```{r}
 #general look
 mod1 <- glm(in_hospital_death ~ SAPS1 + SOFA + Age + Albumin_max + Albumin_min + ALP_max + ALP_min + ALT_diff + AST_max + AST_min + Bilirubin_diff + Bilirubin_max + Bilirubin_min + BUN_diff + BUN_max + BUN_min + Cholesterol_diff + Cholesterol_max + Cholesterol_min + Creatinine_diff + Creatinine_max + Creatinine_min + FiO2_min + GCS_max + GCS_min + Glucose_diff + Glucose_max + HCO3_diff + HCO3_max + HCO3_min + HCT_max + HCT_min + HR_diff + HR_max + ICUType + K_diff + Lactate_diff + Lactate_max + Lactate_min + Na_diff + PaCO2_diff + PaCO2_max + PaCO2_min + PaO2_diff + PaO2_max + PaO2_min + pH_diff + Platelets_diff + Platelets_max + Platelets_min + RespRate_diff + RespRate_max + RespRate_min + Temp_diff + Temp_min + TroponinT_max + Urine_diff + Urine_max + Urine_min + WBC_diff + Weight_max + Weight_min, family = binomial(link = 'logit'), data=icu_removed_na)
@@ -263,29 +273,31 @@ mod1 <- glm(in_hospital_death ~ SAPS1 + SOFA + Age + Albumin_max + Albumin_min +
 summary(mod1)
 ```
 
+The significant variables from mod1 will goes to mod2
 ```{r}
 #sig in Mod1 goes to mod2
-mod2 <- glm(in_hospital_death ~ SAPS1 + Age + AST_max + Bilirubin_min + BUN_min + Cholesterol_max + Cholesterol_min + GCS_max + ICUType + pH_diff + Platelets_diff + Platelets_diff, family = binomial(link = 'logit'), data=icu_removed_na)
+mod2 <- glm(in_hospital_death ~ SAPS1 + Age + AST_max + Bilirubin_min + BUN_min + Cholesterol_max + Cholesterol_min + GCS_max + ICUType + pH_diff + Platelets_diff + Platelets_max, family = binomial(link = 'logit'), data=icu_removed_na)
 summary(mod2)
 ```
 
+The significant variables from mod2 will goes to mod3, and ICU has been removed
 ```{r}
-#sig in Mod2 goes to mod3, ICU removed
-mod3 <- glm(in_hospital_death ~ SAPS1 + Age + AST_max + Bilirubin_min + BUN_min + Cholesterol_max + Cholesterol_min + GCS_max, family = binomial(link = 'logit'), data=icu_removed_na)
+
+mod3 <- glm(in_hospital_death ~ SAPS1 + Age + AST_max + Bilirubin_min + BUN_min + Cholesterol_max + Cholesterol_min + GCS_max + Platelets_diff + Platelets_max, family = binomial(link = 'logit'), data=icu_removed_na)
 summary(mod3)
 ```
 
+Anova compare
 ```{r}
 #Anova test to test which model is better
 anova(mod2, mod3,test='Chisq')
 ```
 
-P value is significant so the model with more variables is better, mod2 has lowest AIC(1235.6)
+P value is significant so the model with more variables is better to avoid over fitting, mod2 also has the lowest AIC(1224.3) which is the best model
 
 
 
 ```{r}
-
 plot(mod2)
 ```
 
