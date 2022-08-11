@@ -10,8 +10,12 @@ output: html_document
 # leave this code here, but feel free to adjust the options or add some more
 # see the knitr documentation for details
 knitr::opts_chunk$set(echo = TRUE, fig.width=12, fig.height=12)
+library(tidyverse)
 library(gtsummary)
 library(dplyr)
+library(pROC)
+library(survival)
+
 ```
 
 ## Instructions
@@ -254,20 +258,20 @@ icu_removed_na <- icu_removed_na %>%
 
 ```{r}
 #general look
-mod1 <- glm(in_hospital_death ~ SAPS1 + SOFA + Age + Albumin_max + Albumin_min + ALP_max + ALP_min + ALT_diff + AST_max + AST_min + Bilirubin_diff + Bilirubin_max + Bilirubin_min + BUN_diff + BUN_max + BUN_min + Cholesterol_diff + Cholesterol_max + Cholesterol_min + Creatinine_diff + Creatinine_max + Creatinine_min + FiO2_min + GCS_max + GCS_min + Glucose_diff + Glucose_max + HCO3_diff + HCO3_max + HCO3_min + HCT_max + HCT_min + HR_diff + HR_max + ICUType + K_diff + Lactate_diff + Lactate_max + Lactate_min + Na_diff + PaCO2_diff + PaCO2_max + PaCO2_min + PaO2_diff + PaO2_max + PaO2_min + pH_diff + Platelets_diff + Platelets_max + Platelets_min + RespRate_diff + RespRate_max + RespRate_min + Temp_diff + Temp_min + TroponinT_max + Urine_diff + Urine_max + Urine_min + WBC_diff + Weight_max + Weight_min, family = binomial(link = 'logit'), data=icu_remove_na)
+mod1 <- glm(in_hospital_death ~ SAPS1 + SOFA + Age + Albumin_max + Albumin_min + ALP_max + ALP_min + ALT_diff + AST_max + AST_min + Bilirubin_diff + Bilirubin_max + Bilirubin_min + BUN_diff + BUN_max + BUN_min + Cholesterol_diff + Cholesterol_max + Cholesterol_min + Creatinine_diff + Creatinine_max + Creatinine_min + FiO2_min + GCS_max + GCS_min + Glucose_diff + Glucose_max + HCO3_diff + HCO3_max + HCO3_min + HCT_max + HCT_min + HR_diff + HR_max + ICUType + K_diff + Lactate_diff + Lactate_max + Lactate_min + Na_diff + PaCO2_diff + PaCO2_max + PaCO2_min + PaO2_diff + PaO2_max + PaO2_min + pH_diff + Platelets_diff + Platelets_max + Platelets_min + RespRate_diff + RespRate_max + RespRate_min + Temp_diff + Temp_min + TroponinT_max + Urine_diff + Urine_max + Urine_min + WBC_diff + Weight_max + Weight_min, family = binomial(link = 'logit'), data=icu_removed_na)
 
 summary(mod1)
 ```
 
 ```{r}
 #sig in Mod1 goes to mod2
-mod2 <- glm(in_hospital_death ~ SAPS1 + Age + AST_max + Bilirubin_min + BUN_min + Cholesterol_max + Cholesterol_min + GCS_max + ICUType + pH_diff + Platelets_diff + Platelets_diff, family = binomial(link = 'logit'), data=icu_remove_na)
+mod2 <- glm(in_hospital_death ~ SAPS1 + Age + AST_max + Bilirubin_min + BUN_min + Cholesterol_max + Cholesterol_min + GCS_max + ICUType + pH_diff + Platelets_diff + Platelets_diff, family = binomial(link = 'logit'), data=icu_removed_na)
 summary(mod2)
 ```
 
 ```{r}
 #sig in Mod2 goes to mod3, ICU removed
-mod3 <- glm(in_hospital_death ~ SAPS1 + Age + AST_max + Bilirubin_min + BUN_min + Cholesterol_max + Cholesterol_min + GCS_max, family = binomial(link = 'logit'), data=icu_remove_na)
+mod3 <- glm(in_hospital_death ~ SAPS1 + Age + AST_max + Bilirubin_min + BUN_min + Cholesterol_max + Cholesterol_min + GCS_max, family = binomial(link = 'logit'), data=icu_removed_na)
 summary(mod3)
 ```
 
@@ -290,13 +294,13 @@ plot(mod2)
 #check brier score
 predicted_pro <- predict(mod2, type = "response")
 
-Brier_score <- mean(predicted_pro - icu_remove_na$in_hospital_death ^2)
+Brier_score <- mean(predicted_pro - icu_removed_na$in_hospital_death ^2)
 Brier_score
 
-icu_remove_na %>%mutate(predprob=predict(mod2, type="response")) -> icu_remove_na
+icu_removed_na %>%mutate(predprob=predict(mod2, type="response")) -> icu_removed_na
 
 
-roc(icu_remove_na$in_hospital_death, icu_remove_na$predprob, plot = TRUE, percent=TRUE)
+roc(icu_removed_na$in_hospital_death, icu_removed_na$predprob, plot = TRUE, percent=TRUE)
 
 
 ```
@@ -335,7 +339,7 @@ In this task, you are required to develop a Cox proportional hazards survival mo
 
 
 ```{r}
-task2 <- coxph(Surv(Days, Status) ~ .-RecordID -in_hospital_death -Length_of_stay -Age, data = icu_remove_na)
+task2 <- coxph(Surv(Days, Status) ~ .-RecordID -in_hospital_death -Length_of_stay -Age, data = icu_removed_na)
 summary(task2)
 ```
 
