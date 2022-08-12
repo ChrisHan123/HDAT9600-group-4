@@ -13,6 +13,8 @@ knitr::opts_chunk$set(echo = TRUE, fig.width=12, fig.height=12)
 install.packages("survival")
 install.packages("bshazard")
 install.packages("eha")
+install.packages("survminer")
+library(survminer)
 library(eha)
 library(survival)
 library(bshazard)
@@ -160,7 +162,6 @@ icu_patients_df1 <- readRDS("icu_patients_df1.rds")
 
 ## Data Preparation
 ```{r}
-
 icu_patients_df0 <- readRDS("icu_patients_df0.rds")
 icu_patients_df1 <- readRDS("icu_patients_df1.rds")
 
@@ -172,7 +173,9 @@ nrow(icu_patients_df1)
 ncol(icu_patients_df1) 
 #check how many missing valus in the dataset 
 sum(is.na(icu_patients_df1))
-#remove all variables that have more than 20% missing value
+
+# data cleaning for the df1
+# remove all variables that have more than 20% missing value
 icu_removed_na <- icu_patients_df1[colSums(is.na(icu_patients_df1))/nrow(icu_patients_df1) < .2]
 icu_removed_na <- na.omit(icu_removed_na)
 icu_removed_na$SOFA[icu_removed_na$SOFA == -1] <- NA 
@@ -185,9 +188,24 @@ ncol(icu_removed_na)
 #check how many missing valus in the dataset after cleaning 
 sum(is.na(icu_removed_na))
 
-
+# data cleaning for the df0
+# remove all variables that have more than 20% missing value
+icu_final <- icu_patients_df0[colSums(is.na(icu_patients_df0))/nrow(icu_patients_df0) < .2]
+icu_final <- na.omit(icu_final)
+icu_final$SOFA[icu_final$SOFA == -1] <- NA 
+icu_final$Length_of_stay[icu_final$Length_of_stay == -1] <- NA 
+icu_final$Weight_diff[icu_final$Weight_diff == Inf] <- NA
+icu_final$Weight_max[icu_final$Weight_max == -Inf] <- NA
+icu_final$Weight_min[icu_final$Weight_min == Inf] <- NA
+icu_final$Height[icu_final$Height == -Inf] <- NA
+icu_final <- na.omit(icu_final)
+# checking how many individuals there are in the dataset after cleaning 
+nrow(icu_final)
+#check how many variables in the dataset after cleaning 
+ncol(icu_final) 
+#check how many missing valus in the dataset after cleaning 
+sum(is.na(icu_final))
 ```
-
 
 # Task 1
 
@@ -240,7 +258,6 @@ In this task, you are required to develop a Cox proportional hazards survival mo
 **Create your response to this task here, as a mixture of embedded (`knitr`) R code and any resulting outputs, and explanatory or commentary text.** 
 
 ```{r}
-
 # removing all censored observations from the icu_removed_na
 deaths <- icu_removed_na[icu_removed_na$Status == TRUE,]
 # histogram of all Days to death 
@@ -365,10 +382,9 @@ cox.mv1 <- coxph( Surv(Days, Status) ~ Length_of_stay + SAPS1 + SOFA + Age + Alb
 summary(cox.mv1)
 print(drop1(cox.mv1, test="Chisq"))
 
+# model 11
 cox.mv11 <- coxph(Surv(Days, Status) ~ SAPS1 + Age + Bilirubin_diff + Bilirubin_min + BUN_min + GCS_max + HCT_diff + Lactate_diff + PaO2_max + Weight_max, data = icu_removed_na)
 summary(cox.mv11)
-
-
 ```
 
 ```{r}
@@ -376,7 +392,6 @@ summary(cox.mv11)
 cox.mv2 <- coxph(Surv(Days, Status) ~ Gender + Length_of_stay + SAPS1 + SOFA + Age + ICUType + Urine_diff + Lactate_diff + HR_diff + Bilirubin_diff + Albumin_diff + Albumin_max + Albumin_min + ALP_max + ALP_min + ALT_max + ALT_min + AST_max + AST_min + Bilirubin_max + Bilirubin_min + BUN_max + BUN_min + Cholesterol_max + Cholesterol_min + Creatinine_max + Creatinine_min + FiO2_max + FiO2_min + GCS_max + GCS_min + Glucose_max + Glucose_min + HCO3_max + HCO3_min + HCT_max + HCT_min + HR_max + HR_min + K_max + K_min + Lactate_max + Lactate_min + MAP_max + MAP_min +  Mg_max + Mg_min + Na_max + Na_min + PaCO2_max + PaCO2_min + PaO2_max + PaO2_min + pH_max + pH_min + Platelets_max + Platelets_min + RespRate_max + RespRate_min + SaO2_max + SaO2_min + Temp_max + Temp_min + TroponinI_max + TroponinI_min + TroponinT_max + TroponinT_min + Urine_max + Urine_min + WBC_max + WBC_min + Weight_max + Weight_min + Albumin_diff + ALP_diff + ALT_diff + AST_diff  + Bilirubin_diff + BUN_diff + Cholesterol_diff + Creatinine_diff + FiO2_diff + GCS_diff + Glucose_diff + HCO3_diff + HCT_diff + HR_diff + K_diff + Lactate_diff + MAP_diff + Mg_diff + Na_diff + PaCO2_diff + PaO2_diff+  Platelets_diff + pH_diff + RespRate_diff + SaO2_diff + Temp_diff + TroponinI_diff + TroponinT_diff + Urine_diff + WBC_diff + Weight_diff, data = icu_removed_na)
 summary(cox.mv2)
 print(drop1(cox.mv2, test="Chisq"))
-
 ```
 
 ```{r}
@@ -385,18 +400,14 @@ cox.mv3 <- coxph(Surv(Days, Status) ~ Gender + SAPS1 + SOFA + Age + ICUType + La
 summary(cox.mv3)
 ```
 
-
-
 ```{r}
 # carry out the LRT test
 print(anova(cox.mv11,cox.mv2))
-
-# compute the AICs of two models(1&2)
-model1 <- 2*10 - 2* (-4749.4 )
+# compute the AICs of two models(11&2)
+model11 <- 2*10 - 2* (-4749.4 )
 model2 <- 2*101 - 2* (-4644.3)
-model1
+model11
 model2
-
 # From the output we see that the p-value (2.649e-09) is very significant. Hence, we choose the  model2 (cox.mv2) with all variables. The AIC thus indicates that we should choose to it because of the model with lower AIC(9490.6) is the preferred one.
 
 
@@ -407,7 +418,36 @@ model2 <- 2*101 - 2* (-4644.3)
 model3 <- 2*17 - 2* (-4743.9)
 model2
 model3
+# From the output we see that the p-value (2.363e-11) is very significant. Hence, we choose the  model3 (cox.mv3) with all variables.
 
+
+# carry out the LRT test
+print(anova(cox.mv11,cox.mv3))
+# compute the AICs of two models(11&3)
+model11 <- 2*10 - 2* (-4749.4)
+model3 <- 2*17 - 2* (-4743.9)
+model11
+model3
+# From the output we see that the p-value (0.139) is not close to significant. Hence, we choose the  model11 (cox.mv11) with all variables. The AIC thus indicates that we should choose to it because of the model with lower AIC(9518.8) is the preferred one.
+```
+
+```{r}
+# final model 
+cox.mvfinal <- coxph(Surv(Days, Status) ~ SAPS1 + SOFA + Age + Bilirubin_diff + Bilirubin_min + BUN_min + GCS_max + HCT_diff + Lactate_diff + PaO2_max + Weight_max, data = icu_removed_na)
+
+# testing for proportional hazards assumption for the final model 
+prop.mvsig <- cox.zph(cox.mvfinal)
+prop.mvsig
+ggcoxzph(prop.mvsig)
+
+
+# From these plots, it appears that the curves crossed and the PH assumption may be violated. Recall that the proportional hazard assumption is supported by a non-significant relationship between residuals and time, while a significant relationship favours the alternative of non-constant hazards. The output from the proportional hazards test shows that the test is statistically significant for (p-value =1e-04) SAPS1, (p-value =0) SOFA, (p-value = 0.0052)Bilirubin_diff, (p-value = 0.0027)Bilirubin_min, (p-value = 0)GCS_max, (p-value = 0.0127)HCT_diff, (p-value = 0.0021)Lactate_diff. The global test is also statistically significant (p-value = 9.3e-07). Therefore, there appears to be a violation of the proportional hazards model.
+```
+
+```{r}
+# refit final model to the datadf0
+cox.mvfinal <- coxph(Surv(Days, Status) ~ SAPS1 + SOFA + Age + BUN_min + GCS_max + HCT_diff + Weight_max, data = icu_final)
+summary(cox.mvfinal)
 ```
 
 
