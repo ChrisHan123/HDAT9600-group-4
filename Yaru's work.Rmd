@@ -358,15 +358,28 @@ fit.e
 ```
 
 
+
 ```{r}
 # model 1
 cox.mv1 <- coxph( Surv(Days, Status) ~ Length_of_stay + SAPS1 + SOFA + Age + Albumin_max + Albumin_min + ALP_max + ALP_min + AST_diff + AST_max + AST_min + Bilirubin_diff + Bilirubin_max + Bilirubin_min + BUN_diff + BUN_max + BUN_min + Cholesterol_max + Creatinine_diff + Creatinine_max + Creatinine_min + FiO2_diff + FiO2_max + GCS_diff + GCS_max + Glucose_diff + Glucose_max + HCO3_diff + HCT_diff + HCT_max + HR_diff + Lactate_diff + Lactate_max + Lactate_min + Na_diff + PaCO2_diff + PaO2_diff + PaO2_max + pH_diff + pH_min + RespRate_max + RespRate_min + Temp_max + Urine_diff + Urine_max + Urine_min + WBC_diff + Weight_max + Weight_min, data = icu_removed_na) 
 summary(cox.mv1)
+print(drop1(cox.mv1, test="Chisq"))
 
+cox.mv11 <- coxph(Surv(Days, Status) ~ SAPS1 + Age + Bilirubin_diff + Bilirubin_min + BUN_min + GCS_max + HCT_diff + Lactate_diff + PaO2_max + Weight_max, data = icu_removed_na)
+summary(cox.mv11)
+
+
+```
+
+```{r}
 # model 2
 cox.mv2 <- coxph(Surv(Days, Status) ~ Gender + Length_of_stay + SAPS1 + SOFA + Age + ICUType + Urine_diff + Lactate_diff + HR_diff + Bilirubin_diff + Albumin_diff + Albumin_max + Albumin_min + ALP_max + ALP_min + ALT_max + ALT_min + AST_max + AST_min + Bilirubin_max + Bilirubin_min + BUN_max + BUN_min + Cholesterol_max + Cholesterol_min + Creatinine_max + Creatinine_min + FiO2_max + FiO2_min + GCS_max + GCS_min + Glucose_max + Glucose_min + HCO3_max + HCO3_min + HCT_max + HCT_min + HR_max + HR_min + K_max + K_min + Lactate_max + Lactate_min + MAP_max + MAP_min +  Mg_max + Mg_min + Na_max + Na_min + PaCO2_max + PaCO2_min + PaO2_max + PaO2_min + pH_max + pH_min + Platelets_max + Platelets_min + RespRate_max + RespRate_min + SaO2_max + SaO2_min + Temp_max + Temp_min + TroponinI_max + TroponinI_min + TroponinT_max + TroponinT_min + Urine_max + Urine_min + WBC_max + WBC_min + Weight_max + Weight_min + Albumin_diff + ALP_diff + ALT_diff + AST_diff  + Bilirubin_diff + BUN_diff + Cholesterol_diff + Creatinine_diff + FiO2_diff + GCS_diff + Glucose_diff + HCO3_diff + HCT_diff + HR_diff + K_diff + Lactate_diff + MAP_diff + Mg_diff + Na_diff + PaCO2_diff + PaO2_diff+  Platelets_diff + pH_diff + RespRate_diff + SaO2_diff + Temp_diff + TroponinI_diff + TroponinT_diff + Urine_diff + WBC_diff + Weight_diff, data = icu_removed_na)
 summary(cox.mv2)
+print(drop1(cox.mv2, test="Chisq"))
 
+```
+
+```{r}
 # model 3
 cox.mv3 <- coxph(Surv(Days, Status) ~ Gender + SAPS1 + SOFA + Age + ICUType + Lactate_diff + Bilirubin_diff + GCS_min + HR_min + Mg_max + Platelets_max + Platelets_min + Weight_max + WBC_diff + Weight_diff, data = icu_removed_na)
 summary(cox.mv3)
@@ -376,10 +389,10 @@ summary(cox.mv3)
 
 ```{r}
 # carry out the LRT test
-print(anova(cox.mv1,cox.mv2))
+print(anova(cox.mv11,cox.mv2))
 
 # compute the AICs of two models(1&2)
-model1 <- 2*49 - 2* (-4711.8)
+model1 <- 2*10 - 2* (-4749.4 )
 model2 <- 2*101 - 2* (-4644.3)
 model1
 model2
