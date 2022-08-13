@@ -211,6 +211,10 @@ summary(icu_patients_df1)
 str(icu_patients_df1)
 skimr::skim(icu_patients_df1)
 
+summary(icu_patients_df0)
+str(icu_patients_df0)
+skimr::skim(icu_patients_df0)
+
 ```
 
 ```{r}
@@ -233,6 +237,26 @@ nrow(icu_removed_na) #1819 rows
 ncol(icu_removed_na) #103 variables
 
 sum(is.na(icu_removed_na))
+
+# Apply data cleaning to the df0 dataset
+
+#remove all variables that have more than 20% missing value
+icu0_removed_na <- icu_patients_df0[colSums(is.na(icu_patients_df0))/nrow(icu_patients_df0) < .2]
+icu0_removed_na <- na.omit(icu0_removed_na)
+
+#SOFA score should be (0-24)
+icu0_removed_na$SOFA[icu_removed_na$SOFA == -1] <- NA 
+
+#lengeth of stay can't be negative
+icu0_removed_na$Length_of_stay[icu0_removed_na$Length_of_stay == -1] <- NA 
+
+icu0_removed_na <- na.omit(icu0_removed_na)
+
+nrow(icu0_removed_na) #1769 rows
+
+ncol(icu0_removed_na) #56 variables
+
+sum(is.na(icu0_removed_na))
 
 ```
 
