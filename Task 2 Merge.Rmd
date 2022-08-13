@@ -1,0 +1,177 @@
+---
+title: "Task2 Merge"
+author: "Yaru"
+date: "2022-08-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# leave this code here, but feel free to adjust the options or add some more
+# see the knitr documentation for details
+knitr::opts_chunk$set(echo = TRUE, fig.width=12, fig.height=12)
+
+# install all packages needed in task 1&2
+library(survminer)
+library(eha)
+library(survival)
+library(bshazard)
+```
+
+
+```{r data prep}
+# load two raw datasets "icu_patients_df1" and "icu_patients_df0"
+icu_patients_df0 <- readRDS("icu_patients_df0.rds")
+icu_patients_df1 <- readRDS("icu_patients_df1.rds")
+
+# data preparation for "icu_patients_df1"
+head(icu_patients_df1) # check the basic information of "icu_patients_df1"
+nrow(icu_patients_df1)
+ncol(icu_patients_df1) 
+sum(is.na(icu_patients_df1)) 
+icu_removed_na <- icu_patients_df1[colSums(is.na(icu_patients_df1))/nrow(icu_patients_df1) < .2]
+icu_removed_na <- na.omit(icu_removed_na)
+icu_removed_na$SOFA[icu_removed_na$SOFA == -1] <- NA 
+icu_removed_na$Length_of_stay[icu_removed_na$Length_of_stay == -1] <- NA 
+icu_removed_na <- na.omit(icu_removed_na) # data cleaning 
+nrow(icu_removed_na)
+ncol(icu_removed_na)
+sum(is.na(icu_removed_na)) # check the basic information of "icu_removed_na" 
+
+# data preparation for "icu_patients_df0"
+icu_final <- icu_patients_df0[colSums(is.na(icu_patients_df0))/nrow(icu_patients_df0) < .2]
+icu_final <- na.omit(icu_final)
+icu_final$SOFA[icu_final$SOFA == -1] <- NA 
+icu_final$Length_of_stay[icu_final$Length_of_stay == -1] <- NA 
+icu_final$Weight_diff[icu_final$Weight_diff == Inf] <- NA
+icu_final$Weight_max[icu_final$Weight_max == -Inf] <- NA
+icu_final$Weight_min[icu_final$Weight_min == Inf] <- NA
+icu_final$Height[icu_final$Height == -Inf] <- NA
+icu_final <- na.omit(icu_final)
+nrow(icu_final)
+ncol(icu_final) 
+sum(is.na(icu_final)) # check the basic information of "icu_final" (use for survival analysis)
+```
+
+# Task 2
+
+In this task, you are required to develop a Cox proportional hazards survival model using the `icu_patients_df1` data set which adequately explains or predicts the length of survival indicated by the `Days` variable, with censoring as indicated by the `Status` variable.  You should fit a series of models, maybe three or four, evaluating each one, before you present your final model. Your final model should **not** include all the predictor variables, just a small subset of them, which you have selected based on statistical significance and/or background knowledge. Aim for between five and ten predictor variables (slightly more or fewer is OK). It is perfectly acceptable to include predictor variables in your final model which are not statistically significant, as long as you justify their inclusion on medical or physiological grounds (you will not be marked down if your medical justification is not exactly correct, but do you best). You should assess each model you consider for goodness of fit and other relevant statistics, and you should assess your final model for violations of assumptions and perform other diagnostics which you think are relevant (and modify the model if indicated, or at least comment on the possible impact of what your diagnostics show). Finally, re-fit your final model to the unimputed data frame (`icu_patients_df0.rds`) and comment on any differences you find.
+
+### Hints
+
+1. Select an initial subset of explanatory variables that you will use to predict survival. Justify your choice.
+
+2. Conduct basic exploratory data analysis on your variables of choice.
+
+3. Fit appropriate univariate Cox proportional hazards models.
+
+4. Fit an appropriate series of multivariable Cox proportional hazards models, justifying your approach. Assess each model you consider for goodness of fit and other relevant statistics.
+
+5. Present your final model. Your final model should **not** include all the predictor variables, just a small subset of them, which you have selected based on statistical significance and/or background knowledge.
+
+6. For your final model, present a set of diagnostic statistics and/or charts and comment on them. 
+
+7. Write a paragraph or two summarising the most important findings of your final model. Include the most important values from the statistical output, and a simple clinical interpretation. 
+
+**Create your response to this task here, as a mixture of embedded (`knitr`) R code and any resulting outputs, and explanatory or commentary text.** 
+
+```{r log-rank tests for categorical }
+# overall Kaplan-Meier estimate and Nelson-Aalen estimate for "icu_removed_na"
+om.fit <- survfit( Surv(Days, Status) ~ 1, data = icu_removed_na) 
+ggsurvplot(om.fit, title = 'Kaplan-Meier estimate of survival function')
+ggsurvplot(om.fit, fun="cumhaz", title = "Nelson-Aalen estimate of cumulative hazard function")
+
+# choose "gender" variable and comparing survival functions between male and female
+om.fitbygender <- survfit( Surv(Days, Status) ~ Gender, data = icu_removed_na) 
+ggsurvplot(om.fitbygender, title= 'Kaplan-Meier estimate of survival function for Gender') 
+# Carry out the log-rank tests for differences in survival experience by gender
+om.fitbygender2 <- coxph( Surv(Days, Status) ~ Gender, data = icu_removed_na) 
+summary(om.fitbygender2)
+
+# choose "ICUType" variable and comparing survival functions between male and female
+om.fitbyicutype <- survfit( Surv(Days, Status) ~ ICUType, data = icu_removed_na) 
+ggsurvplot(om.fitbyicutype, title= 'Kaplan-Meier estimate of survival function for ICUType') 
+# carry out the log-rank tests for differences in survival experience by icutype
+om.fitbyicutype4 <- coxph( Surv(Days, Status) ~ ICUType, data = icu_removed_na) 
+summary(om.fitbyicutype4)
+```
+_From above we can find that the variable 'Gender' is not significant, the variable 'ICUType' is strongly significant just on the level 'ICUTypeCardiac Surgery Recovery Unit' and slightly significant on the level 'ICUTypeSurgical ICU'._
+
+```{r univariate Cox model}
+# fitting the univariate Cox proportional hazards models for "icu_removed_na"
+covariates <- c("Length_of_stay", "SAPS1", "SOFA", "Age", "Albumin_diff", "Albumin_max", "Albumin_min", "ALP_diff", "ALP_max", "ALP_min", "ALT_diff", 
+"ALT_max", "ALT_min", "AST_diff", "AST_max", "AST_min", "Bilirubin_diff", "Bilirubin_max", "Bilirubin_min", "BUN_diff", "BUN_max", "BUN_min", "Cholesterol_diff", "Cholesterol_max", "Cholesterol_min", "Creatinine_diff", "Creatinine_max", "Creatinine_min", "FiO2_diff", "FiO2_max", "FiO2_min", "GCS_diff", "GCS_max", "GCS_min", "Gender", "Glucose_diff", "Glucose_max", "Glucose_min", "HCO3_diff", "HCO3_max", "HCO3_min", "HCT_diff", "HCT_max", "HCT_min", "HR_diff", "HR_max", "HR_min", "ICUType", "K_diff", "K_max", "K_min", "Lactate_diff", "Lactate_max", "Lactate_min", "MAP_diff", "MAP_max", "MAP_min", "Mg_diff", "Mg_max", "Mg_min", "Na_diff", "Na_max", "Na_min", "PaCO2_diff", "PaCO2_max", "PaCO2_min",
+"PaO2_diff", "PaO2_max", "PaO2_min", "pH_diff", "pH_max", "pH_min", "Platelets_diff", "Platelets_max", "Platelets_min", "RespRate_diff", "RespRate_max", "RespRate_min", "SaO2_diff", "SaO2_max", "SaO2_min", "Temp_diff", "Temp_max", "Temp_min", "TroponinI_diff", "TroponinI_max", "TroponinI_min", "TroponinT_diff", "TroponinT_max", "TroponinT_min", "Urine_diff", "Urine_max", "Urine_min", "WBC_diff", "WBC_max", "WBC_min", "Weight_diff", "Weight_max","Weight_min")
+
+univ_formulas <- sapply(covariates,
+                        function(x) as.formula(paste('Surv(Days, Status)~', x)))
+                        
+univ_models <- lapply( univ_formulas, function(x){coxph(x, data = icu_removed_na)})
+univ_results <- lapply(univ_models,
+                       function(x){ 
+                          x <- summary(x)
+                          p.value<-signif(x$wald["pvalue"], digits=2)
+                          wald.test<-signif(x$wald["test"], digits=2)
+                          beta<-signif(x$coef[1], digits=2);#coeficient beta
+                          HR <-signif(x$coef[2], digits=2);#exp(beta)
+                          HR.confint.lower <- signif(x$conf.int[,"lower .95"], 2)
+                          HR.confint.upper <- signif(x$conf.int[,"upper .95"],2)
+                          HR <- paste0(HR, " (", 
+                                       HR.confint.lower, "-", HR.confint.upper, ")")
+                          res<-c(beta, HR, wald.test, p.value)
+                          names(res)<-c("beta", "HR (95% CI for HR)", "wald.test", 
+                                        "p.value")
+                          return(res)
+                          return(exp(cbind(coef(x),confint(x))))
+                         })
+print(univ_results) # extract data 
+```
+_From above we pick variables with p-value <0.005 to fit our first multivariable Cox model._
+
+```{r fit a series of models}
+# pick variables with p-value <0.005 from the univariate Cox model as model 1
+cox.mv1 <- coxph( Surv(Days, Status) ~ Length_of_stay + SAPS1 + SOFA + Age + Albumin_max + Albumin_min + ALP_max + ALP_min + AST_diff + AST_max + AST_min + Bilirubin_diff + Bilirubin_max + Bilirubin_min + BUN_diff + BUN_max + BUN_min + Cholesterol_max + Creatinine_diff + Creatinine_max + Creatinine_min + FiO2_diff + FiO2_max + GCS_diff + GCS_max + Glucose_diff + Glucose_max + HCO3_diff + HCT_diff + HCT_max + HR_diff + Lactate_diff + Lactate_max + Lactate_min + Na_diff + PaCO2_diff + PaO2_diff + PaO2_max + pH_diff + pH_min + RespRate_max + RespRate_min + Temp_max + Urine_diff + Urine_max + Urine_min + WBC_diff + Weight_max + Weight_min, data = icu_removed_na) 
+summary(cox.mv1)
+print(drop1(cox.mv1, test="Chisq"))
+
+# pick variables that are significant based on the previous' cox.mv1 likelihood ratio test as model 11
+cox.mv11 <- coxph(Surv(Days, Status) ~ SAPS1 + Age + Bilirubin_diff + Bilirubin_min + BUN_min + GCS_max + HCT_diff + Lactate_diff + PaO2_max + Weight_max, data = icu_removed_na)
+summary(cox.mv11)
+
+# fit a multivariable Cox model with all variables as model 2
+cox.mv2 <- coxph(Surv(Days, Status) ~ Gender + Length_of_stay + SAPS1 + SOFA + Age + ICUType + Urine_diff + Lactate_diff + HR_diff + Bilirubin_diff + Albumin_diff + Albumin_max + Albumin_min + ALP_max + ALP_min + ALT_max + ALT_min + AST_max + AST_min + Bilirubin_max + Bilirubin_min + BUN_max + BUN_min + Cholesterol_max + Cholesterol_min + Creatinine_max + Creatinine_min + FiO2_max + FiO2_min + GCS_max + GCS_min + Glucose_max + Glucose_min + HCO3_max + HCO3_min + HCT_max + HCT_min + HR_max + HR_min + K_max + K_min + Lactate_max + Lactate_min + MAP_max + MAP_min +  Mg_max + Mg_min + Na_max + Na_min + PaCO2_max + PaCO2_min + PaO2_max + PaO2_min + pH_max + pH_min + Platelets_max + Platelets_min + RespRate_max + RespRate_min + SaO2_max + SaO2_min + Temp_max + Temp_min + TroponinI_max + TroponinI_min + TroponinT_max + TroponinT_min + Urine_max + Urine_min + WBC_max + WBC_min + Weight_max + Weight_min + Albumin_diff + ALP_diff + ALT_diff + AST_diff  + Bilirubin_diff + BUN_diff + Cholesterol_diff + Creatinine_diff + FiO2_diff + GCS_diff + Glucose_diff + HCO3_diff + HCT_diff + HR_diff + K_diff + Lactate_diff + MAP_diff + Mg_diff + Na_diff + PaCO2_diff + PaO2_diff+  Platelets_diff + pH_diff + RespRate_diff + SaO2_diff + Temp_diff + TroponinI_diff + TroponinT_diff + Urine_diff + WBC_diff + Weight_diff, data = icu_removed_na)
+summary(cox.mv2)
+print(drop1(cox.mv2, test="Chisq"))
+
+# pick variables that are significant based on the previous cox.mv2 likelihood ratio test as model 3
+cox.mv3 <- coxph(Surv(Days, Status) ~ Gender + SAPS1 + SOFA + Age + ICUType + Lactate_diff + Bilirubin_diff + GCS_min + HR_min + Mg_max + Platelets_max + Platelets_min + Weight_max + WBC_diff + Weight_diff, data = icu_removed_na)
+summary(cox.mv3)
+
+# carry out the LRT test and compute the AICs for model 11&2&3
+print(anova(cox.mv11,cox.mv2))
+print(anova(cox.mv2,cox.mv3))
+print(anova(cox.mv11,cox.mv3))
+(model11 <- 2*10 - 2* (-4749.4)) # 9518.8
+(model2 <- 2*101 - 2* (-4644.3)) # 9490.6
+(model3 <- 2*17 - 2* (-4743.9)) # 9521.8
+
+```
+_From the output we can find that the p-value (2.649e-09) is very significant from model 11 &2. The p-value (2.363e-11) is very significant from model 2&3 and the p-value (0.139) is very significant from model 11&3. At the same time, we compare three AICs. Hence, we choose the model 11 as our final model._
+
+```{r final model}
+cox.mvfinal <- coxph(Surv(Days, Status) ~ SAPS1 + SOFA + Age + Bilirubin_diff + Bilirubin_min + BUN_min + GCS_max + HCT_diff + Lactate_diff + PaO2_max + Weight_max, data = icu_removed_na)
+summary(cox.mvfinal)
+
+# testing for proportional hazards assumption for the final model 
+(prop.mvsig <- cox.zph(cox.mvfinal))
+ggcoxzph(prop.mvsig)
+
+```
+_Although we have chosen model 11 as the final model, we have added the 'SOFA' variable to the final model. Because although it was not found to be significant, it is a well known metric to assess organ failure rate in ICU, which is affecting patient's survival rate and mortality especially in ICU settings (https://jamanetwork.com/journals/jama/fullarticle/194262)._
+
+_From these plots, it appears that the curves crossed and the PH assumption may be violated. Recall that the proportional hazard assumption is supported by a non-significant relationship between residuals and time, while a significant relationship favours the alternative of non-constant hazards. The output from the proportional hazards test shows that the test is statistically significant for (p-value =1e-04) SAPS1, (p-value =0) SOFA, (p-value = 0.0052)Bilirubin_diff, (p-value = 0.0027)Bilirubin_min, (p-value = 0)GCS_max, (p-value = 0.0127)HCT_diff, (p-value = 0.0021)Lactate_diff. The global test is also statistically significant (p-value = 9.3e-07). Therefore, there appears to be a violation of the proportional hazards model._
+
+```{r refit final model}
+cox.mvfinal <- coxph(Surv(Days, Status) ~ SAPS1 + SOFA + Age + BUN_min + GCS_max + HCT_diff + Weight_max, data = icu_final)
+summary(cox.mvfinal)
+```
+_Final model does not include Bilirubin, Lactate, and PaO2 variables due to the remaining available variables after data cleaning of icu_patients_df0. From the output we can see that the final model fits to "icu_final" and only three variables 'Age', 'BUN_min' and 'GCS_max' are significant._
