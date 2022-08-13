@@ -167,28 +167,38 @@ icu_patients_df1 <- readRDS("icu_patients_df1.rds")
 
 # looking at the first few lines of icu_patients_df1
 head(icu_patients_df1)
+
 # checking how many individuals there are in the dataset
 nrow(icu_patients_df1)
+
 #check how many variables in the dataset 
 ncol(icu_patients_df1) 
+
 #check how many missing valus in the dataset 
 sum(is.na(icu_patients_df1))
 
-# data cleaning for the df1
+
+#data cleaning for the df1**
+  
 # remove all variables that have more than 20% missing value
 icu_removed_na <- icu_patients_df1[colSums(is.na(icu_patients_df1))/nrow(icu_patients_df1) < .2]
 icu_removed_na <- na.omit(icu_removed_na)
 icu_removed_na$SOFA[icu_removed_na$SOFA == -1] <- NA 
 icu_removed_na$Length_of_stay[icu_removed_na$Length_of_stay == -1] <- NA 
 icu_removed_na <- na.omit(icu_removed_na)
+
 # checking how many individuals there are in the dataset after cleaning 
 nrow(icu_removed_na)
+
 #check how many variables in the dataset after cleaning 
-ncol(icu_removed_na) 
-#check how many missing valus in the dataset after cleaning 
+ncol(icu_removed_na)
+
+#check how many missing values in the dataset after cleaning 
 sum(is.na(icu_removed_na))
 
+
 # data cleaning for the df0
+
 # remove all variables that have more than 20% missing value
 icu_final <- icu_patients_df0[colSums(is.na(icu_patients_df0))/nrow(icu_patients_df0) < .2]
 icu_final <- na.omit(icu_final)
@@ -199,11 +209,14 @@ icu_final$Weight_max[icu_final$Weight_max == -Inf] <- NA
 icu_final$Weight_min[icu_final$Weight_min == Inf] <- NA
 icu_final$Height[icu_final$Height == -Inf] <- NA
 icu_final <- na.omit(icu_final)
+
 # checking how many individuals there are in the dataset after cleaning 
 nrow(icu_final)
+
 #check how many variables in the dataset after cleaning 
 ncol(icu_final) 
-#check how many missing valus in the dataset after cleaning 
+
+#check how many missing values in the dataset after cleaning 
 sum(is.na(icu_final))
 ```
 
@@ -260,39 +273,53 @@ In this task, you are required to develop a Cox proportional hazards survival mo
 ```{r}
 # removing all censored observations from the icu_removed_na
 deaths <- icu_removed_na[icu_removed_na$Status == TRUE,]
+
 # histogram of all Days to death 
 hist(deaths$Days, main = "Distribution of Days", xlab = "Days")
+
 # correspondence between histogram and pdf and prob = TRUE for probabilities not counts
-hist(deaths$Days, main = "Distribution of Days", xlab = "Days", prob = TRUE) 
+hist(deaths$Days, main = "Distribution of Days", xlab = "Days", prob = TRUE)
 lines(density(deaths$Days))
+
 # histogram of age at death
 hist(deaths$Age, main = "Distribution of age at death", xlab = "Age")
+
 # correspondence between histogram and pdf and prob = TRUE for probabilities not counts
 hist(deaths$Age, main = "Distribution of age at death", xlab = "Age", prob = TRUE) 
 lines(density(deaths$Age))
+
 # We can see that shorter survival days and times of death around 80 years of age are more probable.
 
 # Days at death
 # obtain empirical cdf value
 Days.ecdf = ecdf(deaths$Days)
+
 # plotting empirical cumulative distribution
 plot(Days.ecdf, main = "Empirical cumulative distribution", xlab = "Days")
+
 # summary of the survival days
 summary(deaths$Days)
+
 # mark the median
 abline(v = 68, h = 0.5)
+
 # add a legend
 legend(70, 0.45, 'median = 68')
+
 # Age at death
 # obtain empirical cdf value
 Age.ecdf = ecdf(deaths$Age)
+
 # plotting empirical cumulative distribution
 plot(Age.ecdf, main = "Empirical cumulative distribution", xlab = "Age at death")
+
 # summary of the survival times
 summary(deaths$Age)
+
 # mark the median
 abline(v = 74, h = 0.5)
 # add a legend
+
 legend (75, 0.45, 'median = 74')
 
 # In the graph above we can see that the probability of dying before 68 days of survival is just under 50% and from the graph below we see that the probability of dying by 74 years of age is about 50%. 
@@ -301,9 +328,11 @@ legend (75, 0.45, 'median = 74')
 # plotting survival distribution, with days on the x axis
 deaths.surv1 <- survfit( Surv(Days, Status) ~ 1, data = deaths) 
 plot(deaths.surv1, main = "Survival function", xlab = "Days", conf.int=FALSE)
+
 # plotting survival distribution, with age on the x axis
 deaths.surv2 <- survfit( Surv(Age, Status) ~ 1, data = deaths) 
 plot(deaths.surv2, main = "Survival function", xlab = "Age", conf.int=FALSE)
+
 # same plot with x axis starting from 75 years of age
 plot(deaths.surv2, xlim = c(75, 100), main = "Survival function", xlab = "Age", conf.int=FALSE)
 
@@ -311,12 +340,12 @@ plot(deaths.surv2, xlim = c(75, 100), main = "Survival function", xlab = "Age", 
 # plotting hazard function, with days on the x axis
 deaths.haz <- bshazard( Surv(Days, Status) ~ 1, data = deaths) 
 plot(deaths.haz, main = "Hazard function", xlab = "Days")
+
 # plotting hazard distribution, with age on the x axis
 deaths.haz2 <- bshazard( Surv(Age, Status) ~ 1, data = deaths) 
 plot(deaths.haz2, main = "Hazard function", xlab = "Age")
-# We see an increasing hazard rate at an increasing days or age, 
-# as can be expected for mortality.
 
+# We see an increasing hazard rate at an increasing days or age, as can be expected for mortality.
 
 ```
 
@@ -324,8 +353,10 @@ plot(deaths.haz2, main = "Hazard function", xlab = "Age")
 # Kaplan-Meier estimate 
 om.fit <- survfit( Surv(Days, Status) ~ 1, data = deaths) 
 summary(om.fit)
+
 # plotting Kaplan-Meier estimate
 plot(om.fit, main = 'Kaplan-Meier estimate of survival function', xlab = 'Days')
+
 # random sample of 50 observations from the icu_removed_na
 indx <- sample(nrow(deaths), size = 50, replace = FALSE)
 rsa <- deaths[indx, ]
@@ -374,28 +405,79 @@ fit.e <- coxreg( Surv(Days, Status) ~ Gender, data = icu_removed_na,  method = "
 fit.e 
 ```
 
+```{r}
+#Fitting the univariate Cox proportional hazards models for cleaned dataset
+
+covariates <- c("Length_of_stay", "SAPS1", "SOFA", "Age", "Albumin_diff", "Albumin_max",
+                "Albumin_min", "ALP_diff", "ALP_max", "ALP_min", "ALT_diff", "ALT_max", "ALT_min",
+                "AST_diff", "AST_max", "AST_min", "Bilirubin_diff", "Bilirubin_max",
+                "Bilirubin_min", "BUN_diff", "BUN_max", "BUN_min", "Cholesterol_diff",
+                "Cholesterol_max", "Cholesterol_min", "Creatinine_diff", "Creatinine_max",
+                "Creatinine_min", "FiO2_diff", "FiO2_max", "FiO2_min", "GCS_diff", "GCS_max",
+                "GCS_min", "Gender", "Glucose_diff", "Glucose_max", "Glucose_min", "HCO3_diff",
+                "HCO3_max", "HCO3_min", "HCT_diff", "HCT_max", "HCT_min", "HR_diff", "HR_max",
+                "HR_min", "ICUType", "K_diff", "K_max", "K_min", "Lactate_diff", "Lactate_max",
+                "Lactate_min", "MAP_diff", "MAP_max", "MAP_min", "Mg_diff", "Mg_max", "Mg_min",
+                "Na_diff", "Na_max", "Na_min", "PaCO2_diff", "PaCO2_max", "PaCO2_min",
+                "PaO2_diff", "PaO2_max", "PaO2_min", "pH_diff", "pH_max", "pH_min",
+                "Platelets_diff", "Platelets_max", "Platelets_min", "RespRate_diff",
+                "RespRate_max", "RespRate_min", "SaO2_diff", "SaO2_max", "SaO2_min", "Temp_diff",
+                "Temp_max", "Temp_min", "TroponinI_diff", "TroponinI_max", "TroponinI_min",
+                "TroponinT_diff", "TroponinT_max", "TroponinT_min", "Urine_diff", "Urine_max",
+                "Urine_min", "WBC_diff", "WBC_max", "WBC_min", "Weight_diff", "Weight_max",
+                "Weight_min")
+
+univ_formulas <- sapply(covariates,
+                        function(x) as.formula(paste('Surv(Days, Status)~', x)))
+                        
+univ_models <- lapply( univ_formulas, function(x){coxph(x, data = icu_removed_na)})
+# Extract data 
+univ_results <- lapply(univ_models,
+                       function(x){ 
+                          x <- summary(x)
+                          p.value<-signif(x$wald["pvalue"], digits=2)
+                          wald.test<-signif(x$wald["test"], digits=2)
+                          beta<-signif(x$coef[1], digits=2);#coeficient beta
+                          HR <-signif(x$coef[2], digits=2);#exp(beta)
+                          HR.confint.lower <- signif(x$conf.int[,"lower .95"], 2)
+                          HR.confint.upper <- signif(x$conf.int[,"upper .95"],2)
+                          HR <- paste0(HR, " (", 
+                                       HR.confint.lower, "-", HR.confint.upper, ")")
+                          res<-c(beta, HR, wald.test, p.value)
+                          names(res)<-c("beta", "HR (95% CI for HR)", "wald.test", 
+                                        "p.value")
+                          return(res)
+                          return(exp(cbind(coef(x),confint(x))))
+                         })
+
+print(univ_results)
+```
 
 
 ```{r}
-# model 1
+# Model 1
+# Picked variables with p-value <0.005 from the univariate Cox model
 cox.mv1 <- coxph( Surv(Days, Status) ~ Length_of_stay + SAPS1 + SOFA + Age + Albumin_max + Albumin_min + ALP_max + ALP_min + AST_diff + AST_max + AST_min + Bilirubin_diff + Bilirubin_max + Bilirubin_min + BUN_diff + BUN_max + BUN_min + Cholesterol_max + Creatinine_diff + Creatinine_max + Creatinine_min + FiO2_diff + FiO2_max + GCS_diff + GCS_max + Glucose_diff + Glucose_max + HCO3_diff + HCT_diff + HCT_max + HR_diff + Lactate_diff + Lactate_max + Lactate_min + Na_diff + PaCO2_diff + PaO2_diff + PaO2_max + pH_diff + pH_min + RespRate_max + RespRate_min + Temp_max + Urine_diff + Urine_max + Urine_min + WBC_diff + Weight_max + Weight_min, data = icu_removed_na) 
 summary(cox.mv1)
 print(drop1(cox.mv1, test="Chisq"))
 
-# model 11
+# Model 11
+# Picked variables that are significant based on the previous' cox.mv1 likelihood ratio test
 cox.mv11 <- coxph(Surv(Days, Status) ~ SAPS1 + Age + Bilirubin_diff + Bilirubin_min + BUN_min + GCS_max + HCT_diff + Lactate_diff + PaO2_max + Weight_max, data = icu_removed_na)
 summary(cox.mv11)
 ```
 
 ```{r}
-# model 2
+# Model 2
+# Variables are all covariates from the dataset
 cox.mv2 <- coxph(Surv(Days, Status) ~ Gender + Length_of_stay + SAPS1 + SOFA + Age + ICUType + Urine_diff + Lactate_diff + HR_diff + Bilirubin_diff + Albumin_diff + Albumin_max + Albumin_min + ALP_max + ALP_min + ALT_max + ALT_min + AST_max + AST_min + Bilirubin_max + Bilirubin_min + BUN_max + BUN_min + Cholesterol_max + Cholesterol_min + Creatinine_max + Creatinine_min + FiO2_max + FiO2_min + GCS_max + GCS_min + Glucose_max + Glucose_min + HCO3_max + HCO3_min + HCT_max + HCT_min + HR_max + HR_min + K_max + K_min + Lactate_max + Lactate_min + MAP_max + MAP_min +  Mg_max + Mg_min + Na_max + Na_min + PaCO2_max + PaCO2_min + PaO2_max + PaO2_min + pH_max + pH_min + Platelets_max + Platelets_min + RespRate_max + RespRate_min + SaO2_max + SaO2_min + Temp_max + Temp_min + TroponinI_max + TroponinI_min + TroponinT_max + TroponinT_min + Urine_max + Urine_min + WBC_max + WBC_min + Weight_max + Weight_min + Albumin_diff + ALP_diff + ALT_diff + AST_diff  + Bilirubin_diff + BUN_diff + Cholesterol_diff + Creatinine_diff + FiO2_diff + GCS_diff + Glucose_diff + HCO3_diff + HCT_diff + HR_diff + K_diff + Lactate_diff + MAP_diff + Mg_diff + Na_diff + PaCO2_diff + PaO2_diff+  Platelets_diff + pH_diff + RespRate_diff + SaO2_diff + Temp_diff + TroponinI_diff + TroponinT_diff + Urine_diff + WBC_diff + Weight_diff, data = icu_removed_na)
 summary(cox.mv2)
 print(drop1(cox.mv2, test="Chisq"))
 ```
 
 ```{r}
-# model 3
+# Model 3
+# Picked variables that are significant based on the previous cox.mv1 likelihood ratio test
 cox.mv3 <- coxph(Surv(Days, Status) ~ Gender + SAPS1 + SOFA + Age + ICUType + Lactate_diff + Bilirubin_diff + GCS_min + HR_min + Mg_max + Platelets_max + Platelets_min + Weight_max + WBC_diff + Weight_diff, data = icu_removed_na)
 summary(cox.mv3)
 ```
@@ -408,6 +490,7 @@ model11 <- 2*10 - 2* (-4749.4 )
 model2 <- 2*101 - 2* (-4644.3)
 model11
 model2
+
 # From the output we see that the p-value (2.649e-09) is very significant. Hence, we choose the  model2 (cox.mv2) with all variables. The AIC thus indicates that we should choose to it because of the model with lower AIC(9490.6) is the preferred one.
 
 
@@ -428,14 +511,17 @@ model11 <- 2*10 - 2* (-4749.4)
 model3 <- 2*17 - 2* (-4743.9)
 model11
 model3
+
 # From the output we see that the p-value (0.139) is not close to significant. Hence, we choose the  model11 (cox.mv11) with all variables. The AIC thus indicates that we should choose to it because of the model with lower AIC(9518.8) is the preferred one.
 ```
 
 ```{r}
-# final model 
+# Final model 
 cox.mvfinal <- coxph(Surv(Days, Status) ~ SAPS1 + SOFA + Age + Bilirubin_diff + Bilirubin_min + BUN_min + GCS_max + HCT_diff + Lactate_diff + PaO2_max + Weight_max, data = icu_removed_na)
 
-# testing for proportional hazards assumption for the final model 
+#SOFA is added to the final model because although it was not found to be significant, it is a well known metric to assess organ failure rate in ICU, which is affecting patient's survival rate and mortality especially in ICU settings (https://jamanetwork.com/journals/jama/fullarticle/194262).
+
+# Testing for proportional hazards assumption for the final model 
 prop.mvsig <- cox.zph(cox.mvfinal)
 prop.mvsig
 ggcoxzph(prop.mvsig)
@@ -448,6 +534,8 @@ ggcoxzph(prop.mvsig)
 # refit final model to the datadf0
 cox.mvfinal <- coxph(Surv(Days, Status) ~ SAPS1 + SOFA + Age + BUN_min + GCS_max + HCT_diff + Weight_max, data = icu_final)
 summary(cox.mvfinal)
+
+# Final model does not include Bilirubin, Lactate, and PaO2 variables due to the remaining available variables after data cleaning of df0
 ```
 
 
