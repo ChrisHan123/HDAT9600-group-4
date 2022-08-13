@@ -146,12 +146,10 @@ The following 36 clinical measures were assessed at multiple timepoints during e
 * Weight (kg)
 
 
-## EDA
+## Data cleaning
 
-1.Getting an overview of dataset
-```{r}
+```{r, include=FALSE}
 icu_patients_df1 <- readRDS("icu_patients_df1.rds")
-
 
 #check how many rows in total, #2061
 nrow(icu_patients_df1)
@@ -163,12 +161,10 @@ ls(icu_patients_df1)
 sum(is.na(icu_patients_df1))
 ```
 
-Getting an overview of dataset, and there are 2061 rows, 120 variables and 11193 missing values at the very beginning
+In our dataset there are 2061 rows, 120 variables and 11193 missing values. 
 
-
-
-2.Remove all variables that have more than 20% missing value and check the dataset again
-```{r}
+```{r, include=FALSE}
+# Remove all variables that have more than 20% missing value and check the dataset again
 icu_removed_na <- icu_patients_df1[colSums(is.na(icu_patients_df1))/nrow(icu_patients_df1) < .2]
 icu_removed_na <- na.omit(icu_removed_na)
 
@@ -178,15 +174,14 @@ nrow(icu_removed_na)
 #check how many variables, 103
 ls(icu_removed_na) 
 ```
-There are 1855 rows and 103 variables left
+We removed all variables that have greater than 20% missing and cleaned the SOFA score data.
 
-3. Check the summary of all variables
-```{r}
+```{r, include=FALSE}
 summary(icu_removed_na)
 ```
 
-4. the SOFA score should be in the range between 0-24, and length of stay shouldn't be negative so delete 
-```{r}
+
+```{r, include=FALSE}
 
 icu_removed_na$SOFA[icu_removed_na$SOFA == -1] <- NA 
 
@@ -194,9 +189,6 @@ icu_removed_na$Length_of_stay[icu_removed_na$Length_of_stay == -1] <- NA
 
 
 icu_removed_na <- na.omit(icu_removed_na)
-
-
-
 
 #1819 rows
 nrow(icu_removed_na)
@@ -209,43 +201,30 @@ sum(is.na(icu_removed_na))
 
 After data clean, there are 1819 rows, 103 variables and 0 missing values finally
 
-
-
-
-
 **Note:** icu_patients_df1 is an imputed (i.e. missing values are 'derived') version of icu_patients_df0.  This assessment does not concern the methods used for imputation.
-
-
 
 # Task 1
 
 In this task, you are required to develop a logistic regression model using the `icu_patients_df1` data set which adequately explains or predicts the `in_hospital_death` variable as the outcome using a subset of the available predictor variables. You should fit a series of models, evaluating each one, before you present your final model. Your final model should **not** include all the predictor variables, just a small subset of them, which you have selected based on statistical significance and/or background knowledge. It is perfectly acceptable to include predictor variables in your final model which are not statistically significant, as long as you justify their inclusion on medical or physiological grounds (you will not be marked down if your medical justification is not exactly correct or complete, but do you best). Aim for between five and ten predictor variables (slightly more or fewer is OK). You should assess each model you consider for goodness of fit and other relevant statistics to help you choose between them. For your final model, present a set of diagnostic statistics and/or charts and comment on them. You don't need to do an exhaustive exploratory data analysis of all the variables in the data set, but you should examine those variables that you use in your model. Finally, re-fit your final model to the unimputed data frame (`icu_patients_df0.rds`) and comment on any differences you find compared to the same model fitted to the imputed data. 
 
 
-### Hints
+Firstly, we examined the demographics of the ICU dataset
 
-1. Select an initial subset of explanatory variables that you will use to predict the risk of in-hospital death. Justify your choice.
+```{r, echo=FALSE, figures-side, fig.show="hold", out.width="50%"}
+##Age
 
-2. Conduct basic exploratory data analysis on your variables of choice.
+ggplot(data = icu_patients_df1) +
+  geom_bar(mapping = aes(x = Age)) +
+  labs(x="Age",  title="Age of patients in dataset")
 
-3. Fit appropriate univariate logistic regression models.
-
-4. Fit an appropriate series of multivariable logistic regression models, justifying your approach. Assess each model you consider for goodness of fit and other relevant statistics.
-
-5. Present your final model. Your final model should **not** include all the predictor variables, just a small subset of them, which you have selected based on statistical significance and/or background knowledge.
-
-6. For your final model, present a set of diagnostic statistics and/or charts and comment on them.
-
-7. Write a paragraph or two summarising the most important findings of your final model. Include the most important values from the statistical output, and a simple clinical interpretation.
-
-
-**Create your response to this task here, as a mixture of embedded (`knitr`) R code and any resulting outputs, and explanatory or commentary text.** 
+###Gender
+ggplot(data = icu_patients_df1) +
+  geom_bar(mapping = aes(x = Gender)) +
+  labs(x="Gender", y="Frequency", title="Gender in the ICU dataset")
+```
 
 
-
-
-**P value between all predictor and in_hospital_death**
-```{r}
+```{r, include=FALSE}
 # Calculate P value between each selected variables and in_hospital_hospital_death
 icu_removed_na$hospital_death <- factor(icu_removed_na$in_hospital_death, labels=c("Survivor","in_hospital_death"))
 
@@ -253,82 +232,69 @@ icu_removed_na$hospital_death <- factor(icu_removed_na$in_hospital_death, labels
 data_frame <- icu_removed_na %>%
        dplyr::select(-RecordID, -Length_of_stay, -Status, -Days, -in_hospital_death)
 
-Pvalue_each <- tbl_summary(data_frame, by=hospital_death) %>%
-          add_p() %>%  
-          modify_header(label = "**Variable**") %>%
-          bold_labels() 
-Pvalue_each
-
 #remove the hospital_death
 icu_removed_na <- icu_removed_na %>%
                  dplyr::select(-hospital_death)
 ```
 
 
-### Model fitting 
+## Model fitting 
 
-We will try fit every significant predictor at the beginning 
-```{r}
+Initially, we fit all variables to our model called 'mod1'
+```{r, include=FALSE}
 #general look
 mod1 <- glm(in_hospital_death ~ SAPS1 + SOFA + Age + Albumin_max + Albumin_min + ALP_max + ALP_min + ALT_diff + AST_max + AST_min + Bilirubin_diff + Bilirubin_max + Bilirubin_min + BUN_diff + BUN_max + BUN_min + Cholesterol_diff + Cholesterol_max + Cholesterol_min + Creatinine_diff + Creatinine_max + Creatinine_min + FiO2_min + GCS_max + GCS_min + Glucose_diff + Glucose_max + HCO3_diff + HCO3_max + HCO3_min + HCT_max + HCT_min + HR_diff + HR_max + ICUType + K_diff + Lactate_diff + Lactate_max + Lactate_min + Na_diff + PaCO2_diff + PaCO2_max + PaCO2_min + PaO2_diff + PaO2_max + PaO2_min + pH_diff + Platelets_diff + Platelets_max + Platelets_min + RespRate_diff + RespRate_max + RespRate_min + Temp_diff + Temp_min + TroponinT_max + Urine_diff + Urine_max + Urine_min + WBC_diff + Weight_max + Weight_min, family = binomial(link = 'logit'), data=icu_removed_na)
 
 summary(mod1)
 ```
 
-The significant variables from mod1 will goes to mod2
-```{r}
+In our next step we create a model called mod2 only using the significant predictors from mod1. These were the SAPS1 score, age, maximum AST, minimum bilirubin, blood urea nitrogen minimum, minimum and maximum cholesterol, maximum glascow coma score (GCS), the type of ICU, the deviation of pH from mean (ph_diff) and the platelet deviation and maximum.
+
+Here is the summary of mod2:
+```{r, echo=FALSE}
 #sig in Mod1 goes to mod2
 mod2 <- glm(in_hospital_death ~ SAPS1 + Age + AST_max + Bilirubin_min + BUN_min + Cholesterol_max + Cholesterol_min + GCS_max + ICUType + pH_diff + Platelets_diff + Platelets_max, family = binomial(link = 'logit'), data=icu_removed_na)
 summary(mod2)
 ```
 
-The significant variables from mod2 will goes to mod3, and ICU has been removed
-```{r}
+ICU type is non-significant in this mode so we exclude it to create mod3
+```{r, include=FALSE}
 
 mod3 <- glm(in_hospital_death ~ SAPS1 + Age + AST_max + Bilirubin_min + BUN_min + Cholesterol_max + Cholesterol_min + GCS_max + Platelets_diff + Platelets_max, family = binomial(link = 'logit'), data=icu_removed_na)
 summary(mod3)
 ```
 
-Anova compare
-```{r}
+We then compare mod2 to mod3 using an analysis of deviance. mod2 has the lowest AIC at 1224.3 so we choose mod2 as our final model.
+```{r, echo=FALSE}
 #Anova test to test which model is better
 anova(mod2, mod3,test='Chisq')
 ```
 
-**P value is significant so the model with more variables is better to avoid over fitting, `mod2` also has the lowest AIC(1224.3) which is the best model**
+mod2 is a model where we find that SAPS1, Age, AST_max, Bilirubin_min, BUN_min, Cholesterol_max, Cholesterol_min, GCS_max, Platelets_diff, Platelets_max are the strongest predictors of ICU mortality. In this next section we will perform some diagnostics on our final model (mod2) to ensure it does not contravene any assumptions of modelling. We will also look at the goodness of fit of our model
 
-From the `mod2` we know that the risk of patients died in the hosptial has huge connection between SAPS1,Age,AST_max, Bilirubin_min, BUN_min, Cholesterol_max, Cholesterol_min, GCS_max, Platelets_diff, Platelets_max
-
-
+## Testing goodness of fit with a ROC curve
 
 
+```{r, echo=FALSE, results=FALSE}
+#Create predicted values
+icu_removed_na %>% mutate(predprob=predict(mod2, type="response")) -> icu_pred_mod2
+
+#ROC curve and AUC of precicted values for full model
+test_roc_mod2 = roc(icu_pred_mod2$in_hospital_death ~ icu_pred_mod2$predprob, plot = TRUE, print.auc = TRUE)
+```
+We used a ROC curve to examine the goodness of fit of our model mod2. We found an AUC of 0.819, which shows that our model has fairly good goodness of fit our dataset.
+
+## Model diagnostics
 
 ```{r fig.width=5, fig.height=5}
-plot(mod2)
 binnedplot(predict(mod2), residuals(mod2))
 ```
+We do find that we have quite a few values falling outside the 95% confidence interval bounds on our binned residual plot. This tells us that the residuals may not be normally distributed (and appear to have a negative proponderence) and as such violate the assumption of normality for residuals.
 
+## Refitting to the unimputed dataset
 
-
-
-
-```{r}
-#check brier score
-predicted <- predict(mod2, type = "response")
-
-BS <- mean(predicted - icu_removed_na$in_hospital_death ^2)
-BS
-
-
-```
-
-**The binnedplot can be used to assess both the overall fit of regression models for binary outcomes and the inclusion of continuous variable and it looks OK. The Brier score of 0 means perfect accuracy, and a Brier score of 1 means perfect inaccuracy. Brier score 1.460868e-15 is infinitely close to 0 which is good**
-
-
-
-
-*Fit to unimputed dataset*
-```{r}
+Lastly, we fit our model to the unimputed dataset to create mod4
+```{r, include=FALSE}
 
 icu_patients_df0 <- readRDS("icu_patients_df0.rds")
 icu_patients_df0
@@ -340,17 +306,18 @@ icu_removed_na2 <- na.omit(icu_removed_na2)
 icu_removed_na2$SOFA[icu_removed_na2$SOFA == -1] <- NA 
 icu_removed_na2$Length_of_stay[icu_removed_na2$Length_of_stay == -1] <- NA 
 icu_removed_na2 <- na.omit(icu_removed_na2)
+```
 
-
+```{r, echo=FALSE}
 mod4 <- glm(in_hospital_death ~ SAPS1 + Age + BUN_min  + GCS_max + ICUType + Platelets_diff + Platelets_max, family = binomial(link = 'logit'), data=icu_removed_na2)
 summary(mod4)
 ```
-mod2:SAPS1 + Age + AST_max + Bilirubin_min + BUN_min + Cholesterol_max + Cholesterol_min + GCS_max + ICUType + pH_diff + Platelets_diff + Platelets_max
-mod4:SAPS1 + Age + BUN_min  + GCS_max + ICUType + Platelets_diff + Platelets_max
 
-The most difference is if we decide to remove the variable that more than 20% are missing will lead to more variables are not able to keep in the data set(icu_patients_df0), for example, Bilirubin_min, Cholesterol_max, Cholesterol_min, pH_diff have all gone. Although the rest of variables of mod4 are not exactly the same with the mod2 but they are still significant.(simliar )
+When we fit our model to the unimputed dataset, we find that we cannot use some variables as they have large proportions of missing data. This leaves our mdoel with SAPS1, Age, BUN_min, ICUType and platelets_diff and maximum as predictors. 
 
+## Task 1 summary
 
+In this task we created a model using the most signficant predictors of in hospital we could find in the ICU dataset. Our final model identified SAPS1, Age, AST_max, Bilirubin_min, BUN_min, Cholesterol_max, Cholesterol_min, GCS_max, Platelets_diff, Platelets_max as significant predictors of in hospital mortality. We found that our model had good goddness of fit to the data with an AUC of 0.819 however, there is a concern that our model may violate the assumption of normality in residuals when examining our binned residual plot. 
 
 # Task 2
 
@@ -378,14 +345,6 @@ In this task, you are required to develop a Cox proportional hazards survival mo
 
 
 **Create your response to this task here, as a mixture of embedded (`knitr`) R code and any resulting outputs, and explanatory or commentary text.** 
-
-
-
-```{r}
-task2 <- coxph(Surv(Days, Status) ~ .-RecordID -in_hospital_death -Length_of_stay -Age, data = icu_removed_na)
-summary(task2)
-```
-
 
 ## Save, knit and submit
 
