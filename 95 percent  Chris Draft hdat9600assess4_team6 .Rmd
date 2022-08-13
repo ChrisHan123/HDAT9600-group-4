@@ -15,6 +15,8 @@ library(gtsummary)
 library(dplyr)
 library(pROC)
 library(survival)
+library(arm)
+
 
 ```
 
@@ -293,31 +295,60 @@ Anova compare
 anova(mod2, mod3,test='Chisq')
 ```
 
-P value is significant so the model with more variables is better to avoid over fitting, mod2 also has the lowest AIC(1224.3) which is the best model
+**P value is significant so the model with more variables is better to avoid over fitting, `mod2` also has the lowest AIC(1224.3) which is the best model**
+
+From the `mod2` we know that the risk of patients died in the hosptial has huge connection between SAPS1,Age,AST_max, Bilirubin_min, BUN_min, Cholesterol_max, Cholesterol_min, GCS_max, Platelets_diff, Platelets_max
 
 
 
-```{r}
+
+
+```{r fig.width=5, fig.height=5}
 plot(mod2)
+binnedplot(predict(mod2), residuals(mod2))
 ```
+
+
+
 
 
 ```{r}
 #check brier score
-predicted_pro <- predict(mod2, type = "response")
+predicted <- predict(mod2, type = "response")
 
-Brier_score <- mean(predicted_pro - icu_removed_na$in_hospital_death ^2)
-Brier_score
-
-icu_removed_na %>%mutate(predprob=predict(mod2, type="response")) -> icu_removed_na
-
-
-roc(icu_removed_na$in_hospital_death, icu_removed_na$predprob, plot = TRUE, percent=TRUE)
+BS <- mean(predicted - icu_removed_na$in_hospital_death ^2)
+BS
 
 
 ```
 
+**The binnedplot can be used to assess both the overall fit of regression models for binary outcomes and the inclusion of continuous variable and it looks OK. The Brier score of 0 means perfect accuracy, and a Brier score of 1 means perfect inaccuracy. Brier score 1.460868e-15 is infinitely close to 0 which is good**
 
+
+
+
+*Fit to unimputed dataset*
+```{r}
+
+icu_patients_df0 <- readRDS("icu_patients_df0.rds")
+icu_patients_df0
+
+icu_removed_na2 <- icu_patients_df0[colSums(is.na(icu_patients_df0))/nrow(icu_patients_df0) < .2]
+icu_removed_na2 <- na.omit(icu_removed_na2)
+
+
+icu_removed_na2$SOFA[icu_removed_na2$SOFA == -1] <- NA 
+icu_removed_na2$Length_of_stay[icu_removed_na2$Length_of_stay == -1] <- NA 
+icu_removed_na2 <- na.omit(icu_removed_na2)
+
+
+mod4 <- glm(in_hospital_death ~ SAPS1 + Age + BUN_min  + GCS_max + ICUType + Platelets_diff + Platelets_max, family = binomial(link = 'logit'), data=icu_removed_na2)
+summary(mod4)
+```
+mod2:SAPS1 + Age + AST_max + Bilirubin_min + BUN_min + Cholesterol_max + Cholesterol_min + GCS_max + ICUType + pH_diff + Platelets_diff + Platelets_max
+mod4:SAPS1 + Age + BUN_min  + GCS_max + ICUType + Platelets_diff + Platelets_max
+
+The most difference is if we decide to remove the variable that more than 20% are missing will lead to more variables are not able to keep in the data set(icu_patients_df0), for example, Bilirubin_min, Cholesterol_max, Cholesterol_min, pH_diff have all gone. Although the rest of variables of mod4 are not exactly the same with the mod2 but they are still significant.(simliar )
 
 
 
