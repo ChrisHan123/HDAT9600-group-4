@@ -1,0 +1,438 @@
+---
+title: "HDAT9600 Final Team Assignment"
+author: "team6"
+date: "16/08/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# leave this code here, but feel free to adjust the options or add some more
+# see the knitr documentation for details
+knitr::opts_chunk$set(echo = TRUE, fig.width=12, fig.height=12)
+
+# install all packages needed in task 1&2
+library(survminer)
+library(eha)
+library(survival)
+library(bshazard)
+library(tidyverse)
+library(readr)
+library(pROC)
+library(arm)
+library(faraway)
+library(dplyr)
+```
+
+## Instructions
+
+* This file (hdat9600assess4_teamX.Rmd) is the R Markdown document in which you need to complete your HDAT9600 final team assignment.
+* You should rename the file by replacing 'X' with your team number.
+* This assignment is assessed and will count for 30% of the total course marks.
+* The assignment comprises two tasks. The first task will focus on logistic regression, and the second task will focus on survival analysis.
+* There is no word limit, nor limit on the length of your submitted Rmarkdown (i.e. this file) document.
+* The **rendered** html document, were it to be printed, should be **no more** than about 10 A4 pages in length.
+* Your html rendered document should include sufficient code chunks, output, and visual display as necessary to support your discursive commentary addressing each task. You may therefore wish to **suppress some of the contents** of your Rmarkdown file from appearing within the rendered document.
+* The rendered (html) document will be the submission primarily considered when awarding credit. However, the Rmarkdown file may also be considered as deemed appropriate.
+* <strong> Excessively long reports will be penalised </strong> by cessation of awarding of credit after roughly 10 pages of content.
+* All tasks are intended to be completed as a team. Have fun discussing the tasks and working together.
+
+Don't hesitate to ask the course convenor for help via OpenLearning. The course instructor are happy to point you in the right direction and to make suggestions, but they won't, of course, complete your assessment for you!
+
+
+## Data for this assessment
+The data used for this assessment consist of records from Intensive Care Unit (ICU) hospital stays in the USA. All patients were adults who were admitted for a wide variety of reasons. ICU stays of less than 48 hours have been excluded. 
+The source data for the assessment are data made freely available for the 2012 MIT PhysioNet/Computing for Cardiology Challenge. Details are provided [here](https://physionet.org/challenge/2012/). Training Set A data have been used. The original data has been modified and assembled to suit the purpose of this assessment. While not required for the purposes of this assignment, full details of the preparatory work can be found in the 'hdat9600assess4_final_data_prep' file.
+The dataframe consists of 120 variables, which are defined as follows:
+
+#### Patient Descriptor Variables
+<li> <em>RecordID:</em>            a unique integer for each ICU stay</li>
+<li> <em>Age:</em>                 years</li>
+<li> <em>Gender:</em>              male/female</li>
+<li> <em>Height:</em>              cm</li>
+<li> <em>ICUType:</em>             Coronary Care Unit; Cardiac Surgery Recovery Unit; Medical ICU; Surgical ICU</li>
+<li> <em>Length_of_stay:</em>      The number of days between the patient’s admission to the ICU and the end of hospitalisation</li>
+<li> <em>Survival:</em>            The number of days between ICU admission and death for patients who died</li>
+
+
+#### Outcome Variables
+<li> <em>in_hospital_death:</em>   0:survivor/1:died in-hospital **this is the outcome variable for Task 1: Logistic Regression**</li>
+<li> <em>Status:</em>              True/False **this is the censoring variable for Task 2: Survival Analysis**</li>
+<li> <em>Days:</em>                Length of survival (in days) **this is the survival time variable for Task 2: Survival Analysis**</li>
+
+
+#### Clinical Variables
+<em>Use the hyperlinks below to find out more about the clinical meaning of each variable.</em>
+The first two clinical variables are summary scores that are used to assess patient condition and risk.
+
+* SAPS-I score - Simplified Acute Physiological Score [Le Gall et al., 1984](http://www.ncbi.nlm.nih.gov/pubmed/6499483)
+* SOFA score - Sequential Organ Failure Assessment [Ferreira et al., 2001](http://www.ncbi.nlm.nih.gov/pubmed/11594901)
+
+#### 
+The following 36 clinical measures were assessed at multiple timepoints during each patient's ICU stay. For each of the 36 clinical measures, you are given 3 summary variables: a) The minimum value during the first 24 hours in ICU (_min), b) The maximum value during the first 24 hours in ICU (_max), and c) The difference between the mean and the most extreme values during the first 24 hours in ICU (_diff). For example, for the clinical measure Cholesterol, these three variables are labelled 'Cholesterol_min', 'Cholesterol_max', and 'Cholesterol_diff'.
+
+* [Albumin](http://en.wikipedia.org/wiki/Human_serum_albumin)
+ (g/dL)
+* [ALP](http://en.wikipedia.org/wiki/Alkaline_phosphatase)
+ [Alkaline phosphatase (IU/L)]
+* [ALT](http://en.wikipedia.org/wiki/Alanine_transaminase)
+ [Alanine transaminase (IU/L)]
+* [AST](http://en.wikipedia.org/wiki/Aspartate_transaminase)
+ [Aspartate transaminase (IU/L)]
+* [Bilirubin](http://en.wikipedia.org/wiki/Bilirubin)
+ (mg/dL)
+* [BUN](http://en.wikipedia.org/wiki/BUN)
+ [Blood urea nitrogen (mg/dL)]
+* [Cholesterol](http://en.wikipedia.org/wiki/Cholesterol)
+ (mg/dL)
+* [Creatinine](http://en.wikipedia.org/wiki/Serum_creatinine#Plasma_creatinine)
+ [Serum creatinine (mg/dL)]
+* [DiasABP](http://en.wikipedia.org/wiki/Diastolic_blood_pressure)
+ [Invasive diastolic arterial blood pressure (mmHg)]
+* [FiO2](http://en.wikipedia.org/wiki/FIO2)
+ [Fractional inspired O<sub>2</sub> (0-1)]
+* [GCS](http://en.wikipedia.org/wiki/Glasgow_coma_score)
+ [Glasgow Coma Score (3-15)]
+* [Glucose](http://en.wikipedia.org/wiki/Serum_glucose)
+ [Serum glucose (mg/dL)]
+* [HCO3](http://en.wikipedia.org/wiki/Bicarbonate#Diagnostics)
+ [Serum bicarbonate (mmol/L)]
+* [HCT](http://en.wikipedia.org/wiki/Hematocrit)
+ [Hematocrit (%)]
+* [HR](http://en.wikipedia.org/wiki/Heart_rate)
+ [Heart rate (bpm)]
+* [K](http://en.wikipedia.org/wiki/Hypokalemia)
+ [Serum potassium (mEq/L)]
+* [Lactate](http://en.wikipedia.org/wiki/Lactic_acid)
+ (mmol/L)
+* [Mg](http://en.wikipedia.org/wiki/Magnesium#Biological_role)
+ [Serum magnesium (mmol/L)]
+* [MAP](http://en.wikipedia.org/wiki/Mean_arterial_pressure)
+ [Invasive mean arterial blood pressure (mmHg)]
+* [MechVent](http://en.wikipedia.org/wiki/Mechanical_ventilation)
+ [Mechanical ventilation respiration (0:false, or 1:true)]
+* [Na](http://en.wikipedia.org/wiki/Serum_sodium)
+ [Serum sodium (mEq/L)]
+* [NIDiasABP](http://en.wikipedia.org/wiki/Diastolic_blood_pressure)
+ [Non-invasive diastolic arterial blood pressure (mmHg)]
+* [NIMAP](http://en.wikipedia.org/wiki/Mean_arterial_pressure)
+ [Non-invasive mean arterial blood pressure (mmHg)]
+* [NISysABP](http://en.wikipedia.org/wiki/Systolic_blood_pressure)
+ [Non-invasive systolic arterial blood pressure (mmHg)]
+* [PaCO2](http://en.wikipedia.org/wiki/Arterial_blood_gas)
+ [partial pressure of arterial CO<sub>2</sub> (mmHg)]
+* [PaO2](http://en.wikipedia.org/wiki/Arterial_blood_gas)
+ [Partial pressure of arterial O<sub>2</sub> (mmHg)]
+* [pH](http://en.wikipedia.org/wiki/Arterial_blood_gas)
+ [Arterial pH (0-14)]
+* [Platelets](http://en.wikipedia.org/wiki/Platelets)
+ (cells/nL)
+* [RespRate](http://en.wikipedia.org/wiki/Respiratory_physiology)
+ [Respiration rate (bpm)]
+* [SaO2](http://en.wikipedia.org/wiki/Arterial_blood_gas)
+ [O<sub>2</sub> saturation in hemoglobin (%)]
+* [SysABP](http://en.wikipedia.org/wiki/Systolic_blood_pressure)
+ [Invasive systolic arterial blood pressure (mmHg)]
+* [Temp](http://en.wikipedia.org/wiki/Normal_human_body_temperature)
+ [Temperature (&deg;C)]
+* [TropI](http://en.wikipedia.org/wiki/Troponin)
+ [Troponin-I (&mu;g/L)]
+* [TropT](http://en.wikipedia.org/wiki/Troponin)
+ [Troponin-T (&mu;g/L)]
+* [Urine](http://en.wikipedia.org/wiki/Fluid_balance)
+ [Urine output (mL)]
+* [WBC](http://en.wikipedia.org/wiki/Reference_ranges_for_blood_tests#Hematology)
+ [White blood cell count (cells/nL)]
+* Weight (kg)
+
+
+
+
+## Accessing the Data
+The data frame can be loaded with the following code:
+```
+icu_patients_df0 <- readRDS("icu_patients_df0.rds")
+icu_patients_df1 <- readRDS("icu_patients_df1.rds")
+```
+**Note:** icu_patients_df1 is an imputed (i.e. missing values are 'derived') version of icu_patients_df0.  This assessment does not concern the methods used for imputation.
+
+
+
+## Data Preparation 
+```{r data prep}
+# load two raw datasets "icu_patients_df1" and "icu_patients_df0"
+icu_patients_df0 <- readRDS("icu_patients_df0.rds")
+icu_patients_df1 <- readRDS("icu_patients_df1.rds")
+
+# data preparation for "icu_patients_df1"
+head(icu_patients_df1) # check the basic information of "icu_patients_df1"
+nrow(icu_patients_df1)
+ncol(icu_patients_df1) 
+sum(is.na(icu_patients_df1)) 
+icu_removed_na <- icu_patients_df1[colSums(is.na(icu_patients_df1))/nrow(icu_patients_df1) < .2]
+icu_removed_na <- na.omit(icu_removed_na)
+icu_removed_na$SOFA[icu_removed_na$SOFA == -1] <- NA 
+icu_removed_na$Length_of_stay[icu_removed_na$Length_of_stay == -1] <- NA 
+icu_removed_na <- na.omit(icu_removed_na) # data cleaning 
+nrow(icu_removed_na)
+ncol(icu_removed_na)
+sum(is.na(icu_removed_na)) # check the basic information of "icu_removed_na" 
+
+# data preparation for "icu_patients_df0"
+icu_final <- icu_patients_df0[colSums(is.na(icu_patients_df0))/nrow(icu_patients_df0) < .2]
+icu_final <- na.omit(icu_final)
+icu_final$SOFA[icu_final$SOFA == -1] <- NA 
+icu_final$Length_of_stay[icu_final$Length_of_stay == -1] <- NA 
+icu_final$Weight_diff[icu_final$Weight_diff == Inf] <- NA
+icu_final$Weight_max[icu_final$Weight_max == -Inf] <- NA
+icu_final$Weight_min[icu_final$Weight_min == Inf] <- NA
+icu_final$Height[icu_final$Height == -Inf] <- NA
+icu_final <- na.omit(icu_final)
+nrow(icu_final)
+ncol(icu_final) 
+sum(is.na(icu_final)) # check the basic information of "icu_final" (use for survival analysis)
+```
+
+# Task 1
+In this task, you are required to develop a logistic regression model using the `icu_patients_df1` data set which adequately explains or predicts the `in_hospital_death` variable as the outcome using a subset of the available predictor variables. You should fit a series of models, evaluating each one, before you present your final model. Your final model should **not** include all the predictor variables, just a small subset of them, which you have selected based on statistical significance and/or background knowledge. It is perfectly acceptable to include predictor variables in your final model which are not statistically significant, as long as you justify their inclusion on medical or physiological grounds (you will not be marked down if your medical justification is not exactly correct or complete, but do you best). Aim for between five and ten predictor variables (slightly more or fewer is OK). You should assess each model you consider for goodness of fit and other relevant statistics to help you choose between them. For your final model, present a set of diagnostic statistics and/or charts and comment on them. You don't need to do an exhaustive exploratory data analysis of all the variables in the data set, but you should examine those variables that you use in your model. Finally, re-fit your final model to the unimputed data frame (`icu_patients_df0.rds`) and comment on any differences you find compared to the same model fitted to the imputed data. 
+
+### Hints
+
+1. Select an initial subset of explanatory variables that you will use to predict the risk of in-hospital death. Justify your choice.
+
+2. Conduct basic exploratory data analysis on your variables of choice.
+
+3. Fit appropriate univariate logistic regression models.
+
+4. Fit an appropriate series of multivariable logistic regression models, justifying your approach. Assess each model you consider for goodness of fit and other relevant statistics.
+
+5. Present your final model. Your final model should **not** include all the predictor variables, just a small subset of them, which you have selected based on statistical significance and/or background knowledge.
+
+6. For your final model, present a set of diagnostic statistics and/or charts and comment on them.
+
+7. Write a paragraph or two summarising the most important findings of your final model. Include the most important values from the statistical output, and a simple clinical interpretation.
+
+
+**Create your response to this task here, as a mixture of embedded (`knitr`) R code and any resulting outputs, and explanatory or commentary text.** 
+
+```{r demographics of data}
+# demographics of age
+ggplot(data = icu_patients_df1) +
+  geom_bar(mapping = aes(x = Age)) +
+  labs(x="Age",  title="Age of patients in dataset")
+
+# demographics of gender
+ggplot(data = icu_patients_df1) +
+  geom_bar(mapping = aes(x = Gender)) +
+  labs(x="Gender", y="Frequency", title="Gender in the ICU dataset")
+
+# calculate P value between each selected variables and in_hospital_hospital_death
+icu_removed_na$hospital_death <- factor(icu_removed_na$in_hospital_death, labels=c("Survivor","in_hospital_death"))
+
+# remove some descriptor and outcome variables
+data_frame <- icu_removed_na %>%
+       dplyr::select(-RecordID, -Length_of_stay, -Status, -Days, -in_hospital_death)
+
+# remove the hospital_death
+icu_removed_na <- icu_removed_na %>%
+                 dplyr::select(-hospital_death)
+```
+
+```{r fit a series of models 1}
+# general look of fitting all variables to our model(mod1)
+mod1 <- glm(in_hospital_death ~ SAPS1 + SOFA + Age + Albumin_max + Albumin_min + ALP_max + ALP_min + ALT_diff + AST_max + AST_min + Bilirubin_diff + Bilirubin_max + Bilirubin_min + BUN_diff + BUN_max + BUN_min + Cholesterol_diff + Cholesterol_max + Cholesterol_min + Creatinine_diff + Creatinine_max + Creatinine_min + FiO2_min + GCS_max + GCS_min + Glucose_diff + Glucose_max + HCO3_diff + HCO3_max + HCO3_min + HCT_max + HCT_min + HR_diff + HR_max + ICUType + K_diff + Lactate_diff + Lactate_max + Lactate_min + Na_diff + PaCO2_diff + PaCO2_max + PaCO2_min + PaO2_diff + PaO2_max + PaO2_min + pH_diff + Platelets_diff + Platelets_max + Platelets_min + RespRate_diff + RespRate_max + RespRate_min + Temp_diff + Temp_min + TroponinT_max + Urine_diff + Urine_max + Urine_min + WBC_diff + Weight_max + Weight_min, family = binomial(link = 'logit'), data=icu_removed_na)
+summary(mod1)
+
+# sig in Mod1 goes to mod2
+mod2 <- glm(in_hospital_death ~ SAPS1 + Age + AST_max + Bilirubin_min + BUN_min + Cholesterol_max + Cholesterol_min + GCS_max + ICUType + pH_diff + Platelets_diff + Platelets_max, family = binomial(link = 'logit'), data=icu_removed_na)
+summary(mod2)
+
+# ICU type is non-significant in this mode so we exclude it to create mod3
+mod3 <- glm(in_hospital_death ~ SAPS1 + Age + AST_max + Bilirubin_min + BUN_min + Cholesterol_max + Cholesterol_min + GCS_max + Platelets_diff + Platelets_max, family = binomial(link = 'logit'), data=icu_removed_na)
+summary(mod3)
+```
+_We then compare mod2 to mod3 using an analysis of deviance. mod2 has the lowest AIC at 1224.3 so we choose mod2 as our final model._
+
+```{r final model 1}
+# anova test to test which model is better
+anova(mod2, mod3,test='Chisq')
+
+# testing goodness of fit with a ROC curve
+# create predicted values
+icu_removed_na %>% mutate(predprob=predict(mod2, type="response")) -> icu_pred_mod2
+
+# rOC curve and AUC of precicted values for full model
+test_roc_mod2 = roc(icu_pred_mod2$in_hospital_death ~ icu_pred_mod2$predprob, plot = TRUE, print.auc = TRUE)
+
+# model diagnostics
+binnedplot(predict(mod2), residuals(mod2))
+```
+_mod2 is a model where we find that SAPS1, Age, AST_max, Bilirubin_min, BUN_min, Cholesterol_max, Cholesterol_min, GCS_max, Platelets_diff, Platelets_max are the strongest predictors of ICU mortality. In this next section we will perform some diagnostics on our final model (mod2) to ensure it does not contravene any assumptions of modelling. We will also look at the goodness of fit of our model.We used a ROC curve to examine the goodness of fit of our model mod2. We found an AUC of 0.819, which shows that our model has fairly good goodness of fit our dataset.We do find that we have quite a few values falling outside the 95% confidence interval bounds on our binned residual plot. This tells us that the residuals may not be normally distributed (and appear to have a negative proponderence) and as such violate the assumption of normality for residuals._
+
+```{r refit final model 1}
+icu_patients_df0 <- readRDS("icu_patients_df0.rds")
+icu_removed_na2 <- icu_patients_df0[colSums(is.na(icu_patients_df0))/nrow(icu_patients_df0) < .2]
+icu_removed_na2 <- na.omit(icu_removed_na2)
+
+icu_removed_na2$SOFA[icu_removed_na2$SOFA == -1] <- NA 
+icu_removed_na2$Length_of_stay[icu_removed_na2$Length_of_stay == -1] <- NA 
+icu_removed_na2 <- na.omit(icu_removed_na2)
+
+mod4 <- glm(in_hospital_death ~ SAPS1 + Age + BUN_min  + GCS_max + ICUType + Platelets_diff + Platelets_max, family = binomial(link = 'logit'), data=icu_removed_na2)
+summary(mod4)
+```
+_When we fit our model to the unimputed dataset, we find that we cannot use some variables as they have large proportions of missing data. This leaves our mdoel with SAPS1, Age, BUN_min, ICUType and platelets_diff and maximum as predictors._
+
+
+### Task 1 summary
+_In this task we created a model using the most signficant predictors of in hospital we could find in the ICU dataset. Our final model identified SAPS1, Age, AST_max, Bilirubin_min, BUN_min, Cholesterol_max, Cholesterol_min, GCS_max, Platelets_diff, Platelets_max as significant predictors of in hospital mortality. We found that our model had good goodness of fit to the data with an AUC of 0.819 however, there is a concern that our model may violate the assumption of normality in residuals when examining our binned residual plot._ 
+
+
+
+
+# Task 2
+
+In this task, you are required to develop a Cox proportional hazards survival model using the `icu_patients_df1` data set which adequately explains or predicts the length of survival indicated by the `Days` variable, with censoring as indicated by the `Status` variable.  You should fit a series of models, maybe three or four, evaluating each one, before you present your final model. Your final model should **not** include all the predictor variables, just a small subset of them, which you have selected based on statistical significance and/or background knowledge. Aim for between five and ten predictor variables (slightly more or fewer is OK). It is perfectly acceptable to include predictor variables in your final model which are not statistically significant, as long as you justify their inclusion on medical or physiological grounds (you will not be marked down if your medical justification is not exactly correct, but do you best). You should assess each model you consider for goodness of fit and other relevant statistics, and you should assess your final model for violations of assumptions and perform other diagnostics which you think are relevant (and modify the model if indicated, or at least comment on the possible impact of what your diagnostics show). Finally, re-fit your final model to the unimputed data frame (`icu_patients_df0.rds`) and comment on any differences you find.
+
+
+### Hints
+
+1. Select an initial subset of explanatory variables that you will use to predict survival. Justify your choice.
+
+2. Conduct basic exploratory data analysis on your variables of choice.
+
+3. Fit appropriate univariate Cox proportional hazards models.
+
+4. Fit an appropriate series of multivariable Cox proportional hazards models, justifying your approach. Assess each model you consider for goodness of fit and other relevant statistics.
+
+5. Present your final model. Your final model should **not** include all the predictor variables, just a small subset of them, which you have selected based on statistical significance and/or background knowledge.
+
+6. For your final model, present a set of diagnostic statistics and/or charts and comment on them. 
+
+7. Write a paragraph or two summarising the most important findings of your final model. Include the most important values from the statistical output, and a simple clinical interpretation. 
+
+
+**Create your response to this task here, as a mixture of embedded (`knitr`) R code and any resulting outputs, and explanatory or commentary text.** 
+
+```{r log-rank tests for categorical }
+# overall Kaplan-Meier estimate and Nelson-Aalen estimate for "icu_removed_na"
+om.fit <- survfit( Surv(Days, Status) ~ 1, data = icu_removed_na) 
+ggsurvplot(om.fit, title = 'Kaplan-Meier estimate of survival function')
+ggsurvplot(om.fit, fun="cumhaz", title = "Nelson-Aalen estimate of cumulative hazard function")
+
+# choose "gender" variable and comparing survival functions between male and female
+om.fitbygender <- survfit( Surv(Days, Status) ~ Gender, data = icu_removed_na) 
+ggsurvplot(om.fitbygender, title= 'Kaplan-Meier estimate of survival function for Gender') 
+# Carry out the log-rank tests for differences in survival experience by gender
+om.fitbygender2 <- coxph( Surv(Days, Status) ~ Gender, data = icu_removed_na) 
+summary(om.fitbygender2)
+
+# choose "ICUType" variable and comparing survival functions between male and female
+om.fitbyicutype <- survfit( Surv(Days, Status) ~ ICUType, data = icu_removed_na) 
+ggsurvplot(om.fitbyicutype, title= 'Kaplan-Meier estimate of survival function for ICUType') 
+# carry out the log-rank tests for differences in survival experience by icutype
+om.fitbyicutype4 <- coxph( Surv(Days, Status) ~ ICUType, data = icu_removed_na) 
+summary(om.fitbyicutype4)
+```
+_From above we can find that the variable 'Gender' is not significant, the variable 'ICUType' is strongly significant just on the level 'ICUTypeCardiac Surgery Recovery Unit' and slightly significant on the level 'ICUTypeSurgical ICU'._
+
+```{r univariate Cox model}
+# fitting the univariate Cox proportional hazards models for "icu_removed_na"
+covariates <- c("Length_of_stay", "SAPS1", "SOFA", "Age", "Albumin_diff", "Albumin_max", "Albumin_min", "ALP_diff", "ALP_max", "ALP_min", "ALT_diff", 
+"ALT_max", "ALT_min", "AST_diff", "AST_max", "AST_min", "Bilirubin_diff", "Bilirubin_max", "Bilirubin_min", "BUN_diff", "BUN_max", "BUN_min", "Cholesterol_diff", "Cholesterol_max", "Cholesterol_min", "Creatinine_diff", "Creatinine_max", "Creatinine_min", "FiO2_diff", "FiO2_max", "FiO2_min", "GCS_diff", "GCS_max", "GCS_min", "Gender", "Glucose_diff", "Glucose_max", "Glucose_min", "HCO3_diff", "HCO3_max", "HCO3_min", "HCT_diff", "HCT_max", "HCT_min", "HR_diff", "HR_max", "HR_min", "ICUType", "K_diff", "K_max", "K_min", "Lactate_diff", "Lactate_max", "Lactate_min", "MAP_diff", "MAP_max", "MAP_min", "Mg_diff", "Mg_max", "Mg_min", "Na_diff", "Na_max", "Na_min", "PaCO2_diff", "PaCO2_max", "PaCO2_min",
+"PaO2_diff", "PaO2_max", "PaO2_min", "pH_diff", "pH_max", "pH_min", "Platelets_diff", "Platelets_max", "Platelets_min", "RespRate_diff", "RespRate_max", "RespRate_min", "SaO2_diff", "SaO2_max", "SaO2_min", "Temp_diff", "Temp_max", "Temp_min", "TroponinI_diff", "TroponinI_max", "TroponinI_min", "TroponinT_diff", "TroponinT_max", "TroponinT_min", "Urine_diff", "Urine_max", "Urine_min", "WBC_diff", "WBC_max", "WBC_min", "Weight_diff", "Weight_max","Weight_min")
+
+univ_formulas <- sapply(covariates,
+                        function(x) as.formula(paste('Surv(Days, Status)~', x)))
+                        
+univ_models <- lapply( univ_formulas, function(x){coxph(x, data = icu_removed_na)})
+univ_results <- lapply(univ_models,
+                       function(x){ 
+                          x <- summary(x)
+                          p.value<-signif(x$wald["pvalue"], digits=2)
+                          wald.test<-signif(x$wald["test"], digits=2)
+                          beta<-signif(x$coef[1], digits=2);#coeficient beta
+                          HR <-signif(x$coef[2], digits=2);#exp(beta)
+                          HR.confint.lower <- signif(x$conf.int[,"lower .95"], 2)
+                          HR.confint.upper <- signif(x$conf.int[,"upper .95"],2)
+                          HR <- paste0(HR, " (", 
+                                       HR.confint.lower, "-", HR.confint.upper, ")")
+                          res<-c(beta, HR, wald.test, p.value)
+                          names(res)<-c("beta", "HR (95% CI for HR)", "wald.test", 
+                                        "p.value")
+                          return(res)
+                          return(exp(cbind(coef(x),confint(x))))
+                         })
+print(univ_results) # extract data 
+```
+_From above we pick variables with p-value <0.005 to fit our first multivariable Cox model._
+
+```{r fit a series of models 2}
+# pick variables with p-value <0.005 from the univariate Cox model as model 1
+cox.mv1 <- coxph( Surv(Days, Status) ~ Length_of_stay + SAPS1 + SOFA + Age + Albumin_max + Albumin_min + ALP_max + ALP_min + AST_diff + AST_max + AST_min + Bilirubin_diff + Bilirubin_max + Bilirubin_min + BUN_diff + BUN_max + BUN_min + Cholesterol_max + Creatinine_diff + Creatinine_max + Creatinine_min + FiO2_diff + FiO2_max + GCS_diff + GCS_max + Glucose_diff + Glucose_max + HCO3_diff + HCT_diff + HCT_max + HR_diff + Lactate_diff + Lactate_max + Lactate_min + Na_diff + PaCO2_diff + PaO2_diff + PaO2_max + pH_diff + pH_min + RespRate_max + RespRate_min + Temp_max + Urine_diff + Urine_max + Urine_min + WBC_diff + Weight_max + Weight_min, data = icu_removed_na) 
+summary(cox.mv1)
+print(drop1(cox.mv1, test="Chisq"))
+
+# pick variables that are significant based on the previous' cox.mv1 likelihood ratio test as model 11
+cox.mv11 <- coxph(Surv(Days, Status) ~ SAPS1 + Age + Bilirubin_diff + Bilirubin_min + BUN_min + GCS_max + HCT_diff + Lactate_diff + PaO2_max + Weight_max, data = icu_removed_na)
+summary(cox.mv11)
+
+# fit a multivariable Cox model with all variables as model 2
+cox.mv2 <- coxph(Surv(Days, Status) ~ Gender + Length_of_stay + SAPS1 + SOFA + Age + ICUType + Urine_diff + Lactate_diff + HR_diff + Bilirubin_diff + Albumin_diff + Albumin_max + Albumin_min + ALP_max + ALP_min + ALT_max + ALT_min + AST_max + AST_min + Bilirubin_max + Bilirubin_min + BUN_max + BUN_min + Cholesterol_max + Cholesterol_min + Creatinine_max + Creatinine_min + FiO2_max + FiO2_min + GCS_max + GCS_min + Glucose_max + Glucose_min + HCO3_max + HCO3_min + HCT_max + HCT_min + HR_max + HR_min + K_max + K_min + Lactate_max + Lactate_min + MAP_max + MAP_min +  Mg_max + Mg_min + Na_max + Na_min + PaCO2_max + PaCO2_min + PaO2_max + PaO2_min + pH_max + pH_min + Platelets_max + Platelets_min + RespRate_max + RespRate_min + SaO2_max + SaO2_min + Temp_max + Temp_min + TroponinI_max + TroponinI_min + TroponinT_max + TroponinT_min + Urine_max + Urine_min + WBC_max + WBC_min + Weight_max + Weight_min + Albumin_diff + ALP_diff + ALT_diff + AST_diff  + Bilirubin_diff + BUN_diff + Cholesterol_diff + Creatinine_diff + FiO2_diff + GCS_diff + Glucose_diff + HCO3_diff + HCT_diff + HR_diff + K_diff + Lactate_diff + MAP_diff + Mg_diff + Na_diff + PaCO2_diff + PaO2_diff+  Platelets_diff + pH_diff + RespRate_diff + SaO2_diff + Temp_diff + TroponinI_diff + TroponinT_diff + Urine_diff + WBC_diff + Weight_diff, data = icu_removed_na)
+summary(cox.mv2)
+print(drop1(cox.mv2, test="Chisq"))
+
+# pick variables that are significant based on the previous cox.mv2 likelihood ratio test as model 3
+cox.mv3 <- coxph(Surv(Days, Status) ~ Gender + SAPS1 + SOFA + Age + ICUType + Lactate_diff + Bilirubin_diff + GCS_min + HR_min + Mg_max + Platelets_max + Platelets_min + Weight_max + WBC_diff + Weight_diff, data = icu_removed_na)
+summary(cox.mv3)
+
+# carry out the LRT test and compute the AICs for model 11&2&3
+print(anova(cox.mv11,cox.mv2))
+print(anova(cox.mv2,cox.mv3))
+print(anova(cox.mv11,cox.mv3))
+(model11 <- 2*10 - 2* (-4749.4)) # 9518.8
+(model2 <- 2*101 - 2* (-4644.3)) # 9490.6
+(model3 <- 2*17 - 2* (-4743.9)) # 9521.8
+
+```
+_From the output we can find that the p-value (2.649e-09) is very significant from model 11 &2. The p-value (2.363e-11) is very significant from model 2&3 and the p-value (0.139) is very significant from model 11&3. At the same time, we compare three AICs. Hence, we choose the model 11 as our final model._
+
+```{r final model 2}
+cox.mvfinal <- coxph(Surv(Days, Status) ~ SAPS1 + SOFA + Age + Bilirubin_diff + Bilirubin_min + BUN_min + GCS_max + HCT_diff + Lactate_diff + PaO2_max + Weight_max, data = icu_removed_na)
+summary(cox.mvfinal)
+
+# testing for proportional hazards assumption for the final model 
+(prop.mvsig <- cox.zph(cox.mvfinal))
+ggcoxzph(prop.mvsig)
+
+```
+_Although we have chosen model 11 as the final model, we have added the 'SOFA' variable to the final model. Because although it was not found to be significant, it is a well known metric to assess organ failure rate in ICU, which is affecting patient's survival rate and mortality especially in ICU settings (https://jamanetwork.com/journals/jama/fullarticle/194262)._
+
+_From these plots, it appears that the curves crossed and the PH assumption may be violated. Recall that the proportional hazard assumption is supported by a non-significant relationship between residuals and time, while a significant relationship favours the alternative of non-constant hazards. The output from the proportional hazards test shows that the test is statistically significant for (p-value =1e-04) SAPS1, (p-value =0) SOFA, (p-value = 0.0052)Bilirubin_diff, (p-value = 0.0027)Bilirubin_min, (p-value = 0)GCS_max, (p-value = 0.0127)HCT_diff, (p-value = 0.0021)Lactate_diff. The global test is also statistically significant (p-value = 9.3e-07). Therefore, there appears to be a violation of the proportional hazards model._
+
+```{r refit final model 2}
+cox.mvfinal <- coxph(Surv(Days, Status) ~ SAPS1 + SOFA + Age + BUN_min + GCS_max + HCT_diff + Weight_max, data = icu_final)
+summary(cox.mvfinal)
+```
+_Final model does not include Bilirubin, Lactate, and PaO2 variables due to the remaining available variables after data cleaning of icu_patients_df0. From the output we can see that the final model fits to "icu_final" and only three variables 'Age', 'BUN_min' and 'GCS_max' are significant._
+
+### Task 2 summary
+_In this task we created a model using the most signficant predictors of in hospital we could find in the ICU dataset. Our final model identified SAPS1, SOFA, Age, Bilirubin_diff, Bilirubin_min, BUN_min, GCS_max, HCT_diff, Lactate_diff, PaO2_max, Weight_max as significant predictors of in hospital mortality. We found that our model had good goodness of fit to the data, there is a concern that there appears to be a violation of the proportional hazards model. When we fitted the df1 data with the final model, not all variables showed significant effects, with the 'Age', 'BUN_min' and 'GCS_max' variables being the most significant._ 
+
+# Save, knit and submit
+
+**Reminder**: don't forget to save this file, to knit it to check that everything works, and then submit via the drop box in OpenLearning.
+
+# Submit your assessment
+
+When you have finished, and are satisfied with your assessment solutions, and this file knits without errors and the output looks the way you want, then you should submit via the drop box in OpenLearning.
+
+### Problems?
+
+If you encounter problems with any part of the process described above, please contact the course convenor via OpenLearning as soon as possible so that the issues can be resolved in good time, and well before the assessment is due.
+
+
+### Additional Information
+
+The instructions are deliberately open-ended and less prescriptive than the individual assessments to allow you some latitude in what you do and how you go about the task. However, to complete the tasks and gain full marks, you only need to replicate or repeat the steps covered in the course - if you do most or all of the things described in the revalant chapters of the HDAT9600 course, full marks will be awarded. 
+
+Note also that with respect to the model fitting, there are no **right** or **wrong** answers when it comes to variable selection and other aspects of model specification. Deep understanding of the underlying medical concepts which govern patient treatment and outcomes in ICUs is not required or assumed, although you should try to gain some understanding of each variable using the links provided. You will not be marked down if your medical justifications are not exactly correct or complete, but do you best, and don't hesitate to seek help from the course convenor.
