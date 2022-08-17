@@ -1,6 +1,6 @@
 ---
 title: "HDAT9600 Final Team Assignment"
-author: "team6"
+author: "Team 6 (Nick Duce, Ruochen Han, Yaru Ding, Kathleen Irena)"
 date: "16/08/2022"
 output: html_document
 ---
@@ -405,7 +405,7 @@ summary(cox.mvfinal)
 ggcoxzph(prop.mvsig)
 
 ```
-_Although we have chosen model 11 as the final model, we have added the 'SOFA' variable to the final model. Because although it was not found to be significant, it is a well known metric to assess organ failure rate in ICU, which is affecting patient's survival rate and mortality especially in ICU settings (https://jamanetwork.com/journals/jama/fullarticle/194262)._
+_Although we have chosen model 11 as the final model, we have added the 'SOFA' variable to the final model. Because although it was not found to be significant, it is a well known metric to assess organ failure rate in ICU, which is affecting patient's survival rate and mortality especially in ICU settings [[Ferreira et al., 2001](https://jamanetwork.com/journals/jama/fullarticle/194262)]._
 
 _From these plots, it appears that the curves crossed and the PH assumption may be violated. Recall that the proportional hazard assumption is supported by a non-significant relationship between residuals and time, while a significant relationship favours the alternative of non-constant hazards. The output from the proportional hazards test shows that the test is statistically significant for (p-value =1e-04) SAPS1, (p-value =0) SOFA, (p-value = 0.0052)Bilirubin_diff, (p-value = 0.0027)Bilirubin_min, (p-value = 0)GCS_max, (p-value = 0.0127)HCT_diff, (p-value = 0.0021)Lactate_diff. The global test is also statistically significant (p-value = 9.3e-07). Therefore, there appears to be a violation of the proportional hazards model._
 
@@ -413,7 +413,7 @@ _From these plots, it appears that the curves crossed and the PH assumption may 
 cox.mvfinal <- coxph(Surv(Days, Status) ~ SAPS1 + SOFA + Age + BUN_min + GCS_max + HCT_diff + Weight_max, data = icu_final)
 summary(cox.mvfinal)
 ```
-_Final model does not include Bilirubin, Lactate, and PaO2 variables due to the remaining available variables after data cleaning of icu_patients_df0. From the output we can see that the final model fits to "icu_final" and only three variables 'Age', 'BUN_min' and 'GCS_max' are significant._
+_Final model does not include Bilirubin, Lactate, and PaO2 variables due to the remaining available variables after data cleaning of icu_patients_df0. From the output we can see that the final model fits to "icu_final" and only three variables 'Age', 'BUN_min' and 'GCS_max' are significant. These three variables are definitely important in mortality prediction: a study has mentioned BUN can be used as an independent predictor of mortality in ICU patients [[Wernly et al., 2018](https://pubmed.ncbi.nlm.nih.gov/29758935/)], the same finding is also applied for GCS [[Hassan & Liu, 2020](https://journals.lww.com/ccmjournal/Fulltext/2020/01001/747__PROSPECTIVE_EVALUATION_OF_EARLY_GLASGOW_COMA.710.aspx)], and there have been numerous evidence on how patient's survival rate is correlated to to Age._
 
 ### Task 2 summary
 _In this task we created a model using the most signficant predictors of in hospital we could find in the ICU dataset. Our final model identified SAPS1, SOFA, Age, Bilirubin_diff, Bilirubin_min, BUN_min, GCS_max, HCT_diff, Lactate_diff, PaO2_max, Weight_max as significant predictors of in hospital mortality. We found that our model had good goodness of fit to the data, there is a concern that there appears to be a violation of the proportional hazards model. When we fitted the df1 data with the final model, not all variables showed significant effects, with the 'Age', 'BUN_min' and 'GCS_max' variables being the most significant._ 
